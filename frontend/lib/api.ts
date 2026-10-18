@@ -1,6 +1,8 @@
 import type { Grade, MascotId, RewardId, Subject } from "./data";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost" ? "https://multikids-backend.vercel.app" : "http://localhost:4000");
 const TOKEN_KEY = "bilimdon-token";
 
 export type Profile = { mascot: MascotId | null; grade: Grade | null; subject: Subject | null };

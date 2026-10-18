@@ -7,19 +7,19 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { db, load, save } from "./db.js";
+import { db, load, save, DATA_DIR } from "./db.js";
 import { getQuestionBank, SUBJECTS, GRADES } from "./questions/index.js";
 import { createSession, answerQuestion, summarize, publicState, QUIZ_LENGTH } from "./quizEngine.js";
 
 load();
 
 const PORT = Number(process.env.PORT) || 4000;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:3000,https://multikids-two.vercel.app").split(",").map((s) => s.trim());
 const MASCOTS = ["ajdarcha", "pandacha", "labubu", "mushukcha", "robotcha", "ayiqcha", "minioncha", "spidermancha", "mariocha", "kuchukcha"];
 
 function jwtSecret() {
   if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
-  const file = path.resolve("data", ".jwt-secret");
+  const file = path.join(DATA_DIR, ".jwt-secret");
   if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(48).toString("hex"));
   console.warn("JWT_SECRET o‘rnatilmagan — data/.jwt-secret faylidagi lokal kalit ishlatilmoqda.");
   return fs.readFileSync(file, "utf8");
@@ -223,4 +223,6 @@ app.use((err, _req, res, _next) => {
   fail(res, 500, "Serverda xatolik yuz berdi");
 });
 
-app.listen(PORT, () => console.log(`API http://localhost:${PORT} manzilida ishlamoqda`));
+if (!process.env.VERCEL) app.listen(PORT, () => console.log(`API http://localhost:${PORT} manzilida ishlamoqda`));
+
+export default app;

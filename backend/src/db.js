@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 // Oddiy JSON-fayl ombori. Yozish atomar: vaqtinchalik faylga yozib, keyin almashtiriladi.
-const DATA_DIR = process.env.DATA_DIR || path.resolve("data");
+// Vercel'da faqat /tmp ga yozish mumkin (u yerda ma'lumotlar vaqtinchalik).
+export const DATA_DIR = process.env.DATA_DIR || (process.env.VERCEL ? "/tmp/data" : path.resolve("data"));
 const FILE = path.join(DATA_DIR, "db.json");
 
 let state = { users: [], results: [] };
