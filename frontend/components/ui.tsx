@@ -32,8 +32,8 @@ export function Card({ className = "", children }: { className?: string; childre
 export function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2 text-xl font-black text-blue-700">
-      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-600 text-white shadow-[0_4px_0_#1e40af]">B</span>
-      Bilimdon
+      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-600 text-white shadow-[0_4px_0_#1e40af]">M</span>
+      MultiKids
     </Link>
   );
 }

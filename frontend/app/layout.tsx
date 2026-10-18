@@ -6,7 +6,7 @@ import { AuthProvider } from "@/lib/auth";
 const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin", "latin-ext", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: "Bilimdon — o‘yin orqali o‘rgan",
+  title: "MultiKids — o‘yin orqali o‘rgan",
   description: "1–4-sinf o‘quvchilari uchun 3D qahramonli o‘quv platformasi",
 };
 
