@@ -27,7 +27,9 @@ function jwtSecret() {
 const SECRET = jwtSecret();
 
 const app = express();
-app.use(cors({ origin: CLIENT_ORIGIN }));
+// Token Authorization sarlavhasida yuboriladi (cookie emas), shuning uchun loyiha domenlarini ruxsat etish xavfsiz.
+const VERCEL_ORIGIN = /^https:\/\/multikids[\w-]*\.vercel\.app$/;
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || CLIENT_ORIGIN.includes(origin) || VERCEL_ORIGIN.test(origin)) }));
 app.use(express.json({ limit: "50kb" }));
 
 // --- Yordamchilar ---
