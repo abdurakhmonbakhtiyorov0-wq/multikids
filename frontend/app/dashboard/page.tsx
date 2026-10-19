@@ -51,6 +51,11 @@ export default function Dashboard() {
               <Link href="/quiz" className="inline-flex min-h-12 items-center rounded-2xl bg-white px-6 font-extrabold text-blue-700 shadow-[0_5px_0_#93c5fd] transition hover:bg-blue-50 active:translate-y-[3px] active:shadow-[0_2px_0_#93c5fd]">
                 {subjectStats?.attempts ? "Davom etish ▶" : "Darsni boshlash ▶"}
               </Link>
+              {!!subjectStats?.mistakesToReview && (
+                <Link href="/quiz?mode=mistakes" className="inline-flex min-h-12 items-center rounded-2xl px-5 font-bold text-white ring-2 ring-white/50 hover:bg-white/10">
+                  Xatolar ustida ishlash ({subjectStats.mistakesToReview})
+                </Link>
+              )}
               <Link href="/onboarding?step=subject" className="inline-flex min-h-12 items-center rounded-2xl px-5 font-bold text-white ring-2 ring-white/50 hover:bg-white/10">
                 Boshqa fan tanlash
               </Link>
