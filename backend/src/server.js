@@ -7,11 +7,9 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { db, load, save, DATA_DIR } from "./db.js";
+import { init, findUserById, findUserByEmail, createUser, updateUserProfile, saveResult, findResult, listResults } from "./db.js";
 import { getQuestionBank, SUBJECTS, GRADES } from "./questions/index.js";
 import { createSession, answerQuestion, summarize, publicState, QUIZ_LENGTH } from "./quizEngine.js";
-
-load();
 
 const PORT = Number(process.env.PORT) || 4000;
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:3000,https://multikids-two.vercel.app").split(",").map((s) => s.trim());
@@ -19,7 +17,9 @@ const MASCOTS = ["ajdarcha", "pandacha", "labubu", "mushukcha", "robotcha", "ayi
 
 function jwtSecret() {
   if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
-  const file = path.join(DATA_DIR, ".jwt-secret");
+  const dir = process.env.VERCEL ? "/tmp" : path.resolve("data");
+  const file = path.join(dir, ".jwt-secret");
+  fs.mkdirSync(dir, { recursive: true });
   if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(48).toString("hex"));
   console.warn("JWT_SECRET o‘rnatilmagan — data/.jwt-secret faylidagi lokal kalit ishlatilmoqda.");
   return fs.readFileSync(file, "utf8");
@@ -32,6 +32,16 @@ const VERCEL_ORIGIN = /^https:\/\/multikids[\w-]*\.vercel\.app$/;
 app.use(cors({ origin: (origin, cb) => cb(null, !origin || CLIENT_ORIGIN.includes(origin) || VERCEL_ORIGIN.test(origin)) }));
 app.use(express.json({ limit: "50kb" }));
 
+// Express 5 async handlerlardagi xatolarni o‘zi ushlaydi; sxema birinchi so‘rovdan oldin tayyorlanadi.
+app.use(async (_req, _res, next) => {
+  try {
+    await init();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // --- Yordamchilar ---
 const fail = (res, status, message) => res.status(status).json({ error: message });
 
@@ -39,18 +49,19 @@ function publicUser(u) {
   return { id: u.id, name: u.name, email: u.email, profile: u.profile, createdAt: u.createdAt };
 }
 
-function auth(req, res, next) {
+async function auth(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer /, "");
   if (!token) return fail(res, 401, "Tizimga kiring");
+  let sub;
   try {
-    const { sub } = jwt.verify(token, SECRET);
-    const user = db.users.find((u) => u.id === sub);
-    if (!user) return fail(res, 401, "Foydalanuvchi topilmadi");
-    req.user = user;
-    next();
+    ({ sub } = jwt.verify(token, SECRET));
   } catch {
-    fail(res, 401, "Sessiya muddati tugagan, qaytadan kiring");
+    return fail(res, 401, "Sessiya muddati tugagan, qaytadan kiring");
   }
+  const user = await findUserById(sub);
+  if (!user) return fail(res, 401, "Foydalanuvchi topilmadi");
+  req.user = user;
+  next();
 }
 
 // Oddiy kirish urinishlari cheklovchisi (IP bo'yicha, 15 daqiqada 20 ta).
@@ -78,17 +89,8 @@ app.post("/api/auth/register", rateLimit, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0].message);
   const { name, email, password } = parsed.data;
-  if (db.users.some((u) => u.email === email)) return fail(res, 409, "Bu email bilan hisob allaqachon mavjud");
-  const user = {
-    id: crypto.randomUUID(),
-    name,
-    email,
-    passwordHash: await bcrypt.hash(password, 10),
-    profile: { mascot: null, grade: null, subject: null },
-    createdAt: new Date().toISOString(),
-  };
-  db.users.push(user);
-  await save();
+  const user = await createUser({ id: crypto.randomUUID(), name, email, passwordHash: await bcrypt.hash(password, 10) });
+  if (!user) return fail(res, 409, "Bu email bilan hisob allaqachon mavjud");
   res.status(201).json({ token: sign(user), user: publicUser(user) });
 });
 
@@ -97,7 +99,7 @@ const loginSchema = z.object({ email: z.string().trim().toLowerCase().email("Ema
 app.post("/api/auth/login", rateLimit, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0].message);
-  const user = db.users.find((u) => u.email === parsed.data.email);
+  const user = await findUserByEmail(parsed.data.email);
   if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) return fail(res, 401, "Email yoki parol noto‘g‘ri");
   res.json({ token: sign(user), user: publicUser(user) });
 });
@@ -116,10 +118,8 @@ app.patch("/api/me", auth, async (req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, "Ma’lumotlar noto‘g‘ri");
   const { name, ...profile } = parsed.data;
-  if (name) req.user.name = name;
-  Object.assign(req.user.profile, profile);
-  await save();
-  res.json({ user: publicUser(req.user) });
+  const user = await updateUserProfile(req.user.id, { name, ...profile });
+  res.json({ user: publicUser(user) });
 });
 
 // --- Test ---
@@ -168,23 +168,23 @@ app.post("/api/quiz/:id/finish", auth, async (req, res) => {
   if (!s) return;
   if (s.answers.includes(null)) return fail(res, 409, "Avval barcha savollarga javob bering");
   if (!s.finished) {
+    const result = summarize(s);
+    await saveResult(result);
+    s.result = result;
     s.finished = true;
-    s.result = summarize(s);
-    db.results.push(s.result);
-    await save();
   }
   res.json({ result: s.result, state: publicState(s) });
 });
 
 // --- Natijalar ---
-app.get("/api/results/:id", auth, (req, res) => {
-  const r = db.results.find((x) => x.id === req.params.id && x.userId === req.user.id);
+app.get("/api/results/:id", auth, async (req, res) => {
+  const r = await findResult(req.params.id, req.user.id);
   if (!r) return fail(res, 404, "Natija topilmadi");
   res.json({ result: r });
 });
 
-app.get("/api/progress", auth, (req, res) => {
-  const mine = db.results.filter((r) => r.userId === req.user.id);
+app.get("/api/progress", auth, async (req, res) => {
+  const mine = await listResults(req.user.id);
   const totalPoints = mine.reduce((s, r) => s + r.score, 0);
   const bySubject = {};
   for (const subject of SUBJECTS) {
@@ -225,6 +225,13 @@ app.use((err, _req, res, _next) => {
   fail(res, 500, "Serverda xatolik yuz berdi");
 });
 
-if (!process.env.VERCEL) app.listen(PORT, () => console.log(`API http://localhost:${PORT} manzilida ishlamoqda`));
+if (!process.env.VERCEL) {
+  init()
+    .then(() => app.listen(PORT, () => console.log(`API http://localhost:${PORT} manzilida ishlamoqda`)))
+    .catch((err) => {
+      console.error("PostgreSQL'ga ulanib bo‘lmadi:", err.message);
+      process.exit(1);
+    });
+}
 
 export default app;
