@@ -8,6 +8,7 @@ import { MascotView } from "@/components/MascotView";
 import type { Mood, Reaction } from "@/components/three/Mascot";
 import { REWARDS, SUBJECT_BY_ID } from "@/lib/data";
 import { confetti, playSound } from "@/lib/effects";
+import { speechLang, useSpeech } from "@/lib/speech";
 import { api, ApiError, type NewAchievement, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState, type TestId } from "@/lib/api";
 import { useAuth, useRequireUser } from "@/lib/auth";
 
@@ -23,6 +24,8 @@ function message(r: QuizResult) {
 export default function QuizPage() {
   const user = useRequireUser();
   const { refresh } = useAuth();
+  const speech = useSpeech(speechLang(user?.profile.subject ?? "mathematics"));
+  const { available: canSpeak, speak, stop } = speech;
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
@@ -144,6 +147,20 @@ export default function QuizPage() {
     return () => clearTimeout(t);
   }, [remaining, result, session, finish]);
 
+  const readAloud = useCallback(
+    (question: QuizQuestion) => speak(`${question.prompt.replace(/\n/g, ". ")}. ${question.options.join(". ")}.`),
+    [speak],
+  );
+  const autoRead = user?.child?.voiceAutoplay ?? false;
+  const currentId = q?.id;
+  useEffect(() => {
+    if (!q) return;
+    if (autoRead && canSpeak && !result) readAloud(q);
+    return () => stop();
+    // faqat savol almashganda qayta ishga tushadi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId, autoRead, canSpeak]);
+
   async function choose(answer: number) {
     if (!session || feedback || inFlight.current) return;
     inFlight.current = true;
@@ -244,7 +261,24 @@ export default function QuizPage() {
               <AnimatePresence mode="wait">
                 <motion.div key={q.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}>
                   <Card>
-                    <h1 className="whitespace-pre-line text-xl font-extrabold leading-relaxed text-blue-950 sm:text-2xl">{q.prompt}</h1>
+                    <div className="flex items-start gap-3">
+                      {canSpeak && (
+                        <button
+                          type="button"
+                          onClick={() => (speech.speaking ? stop() : readAloud(q))}
+                          aria-label={speech.speaking ? "O‘qishni to‘xtatish" : "Savolni ovoz chiqarib o‘qish"}
+                          aria-pressed={speech.speaking}
+                          className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-blue-100 text-2xl text-blue-700 ring-2 ring-blue-200 transition hover:bg-blue-200 active:scale-95"
+                        >
+                          {speech.speaking ? "⏹" : "🔊"}
+                        </button>
+                      )}
+                      <h1 className="whitespace-pre-line text-xl font-extrabold leading-relaxed text-blue-950 sm:text-2xl">{q.prompt}</h1>
+                    </div>
+                    {q.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={q.image.src} alt={q.image.alt} loading="lazy" decoding="async" className="mx-auto mt-4 max-h-56 rounded-2xl bg-blue-50 p-2" />
+                    )}
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       {q.options.map((o, i) => {
                         const isCorrect = feedback && i === feedback.correctIndex;

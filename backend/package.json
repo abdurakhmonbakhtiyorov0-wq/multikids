@@ -9,7 +9,8 @@
     "start": "node src/server.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
-    "db:import": "node scripts/import-json.js"
+    "db:import": "node scripts/import-json.js",
+    "images": "node scripts/make-images.js"
   },
   "keywords": [],
   "author": "",

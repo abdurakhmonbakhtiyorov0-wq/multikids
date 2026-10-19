@@ -101,3 +101,21 @@ test("kun vaqt mintaqasi bo‘yicha hisoblanadi", () => {
   assert.equal(dayInZone(d, "Asia/Tashkent"), "2026-10-20");
   assert.equal(dayInZone(d, "Nope/Nowhere"), "2026-10-19");
 });
+
+import { IMAGE_SPECS, ITEM_UZ } from "../src/questions/images.js";
+import { renderSvg } from "../scripts/make-images.js";
+
+test("rasmli savollar: javob rasmdagi buyumlar soniga mos, variantlar takrorlanmaydi, alt javobni oshkor qilmaydi", () => {
+  for (const spec of IMAGE_SPECS) {
+    const options = [spec.correct, ...spec.wrong];
+    assert.equal(new Set(options).size, options.length, spec.id);
+    assert.ok(options.length >= 3, spec.id);
+    const m = spec.prompt.match(/^Rasmda nechta (\S+) bor\?$/);
+    if (m) {
+      const shape = Object.entries(ITEM_UZ).find(([, uz]) => uz === m[1])[0];
+      assert.equal(String(spec.items.filter((i) => i.shape === shape).length), spec.correct, spec.id);
+    }
+    assert.ok(!spec.alt.includes(spec.correct), `alt matni javobni aytib qo‘ymasin: ${spec.id}`);
+    assert.match(renderSvg(spec), /^<svg /);
+  }
+});
