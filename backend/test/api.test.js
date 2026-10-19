@@ -20,10 +20,10 @@ after(async () => {
   await db?.stop();
 });
 
-async function call(method, path, { token, body, child } = {}) {
+async function call(method, path, { token, body, child, parent } = {}) {
   const res = await fetch(base + path, {
     method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(child ? { "X-Child-Id": child } : {}) },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(child ? { "X-Child-Id": child } : {}), ...(parent ? { "X-Parent-Token": parent } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, body: await res.json().catch(() => ({})) };
@@ -31,7 +31,7 @@ async function call(method, path, { token, body, child } = {}) {
 
 async function signup(prefix = "user") {
   const email = `${prefix}${++n}@example.com`;
-  const r = await call("POST", "/api/auth/register", { body: { name: "Ali", email, password: "secret123" } });
+  const r = await call("POST", "/api/auth/register", { body: { name: "Ali", email, password: "secret123", consent: true } });
   assert.equal(r.status, 201);
   const token = r.body.token;
   await call("PATCH", "/api/me", { token, body: { grade: 1, subject: "mathematics", mascot: "pandacha" } });
@@ -67,8 +67,9 @@ const start = (token, body = { grade: 1, subject: "mathematics" }, child) => cal
 
 test("ro‘yxatdan o‘tish, kirish va autentifikatsiya tekshiruvi", async () => {
   const { email } = await signup("auth");
-  assert.equal((await call("POST", "/api/auth/register", { body: { name: "Ali", email, password: "secret123" } })).status, 409);
-  assert.equal((await call("POST", "/api/auth/register", { body: { name: "A", email: "x@y.com", password: "123" } })).status, 400);
+  assert.equal((await call("POST", "/api/auth/register", { body: { name: "Ali", email, password: "secret123", consent: true } })).status, 409);
+  assert.equal((await call("POST", "/api/auth/register", { body: { name: "Ali", email: "nc@example.com", password: "secret123" } })).status, 400, "rozilik majburiy");
+  assert.equal((await call("POST", "/api/auth/register", { body: { name: "A", email: "x@y.com", password: "123", consent: true } })).status, 400);
   assert.equal((await call("POST", "/api/auth/login", { body: { email, password: "wrongpass" } })).status, 401);
   const ok = await call("POST", "/api/auth/login", { body: { email: email.toUpperCase(), password: "secret123" } });
   assert.equal(ok.status, 200);
@@ -286,7 +287,10 @@ test("bir nechta bola: ma‘lumotlar aralashmaydi", async () => {
   const { token } = await signup("kids");
   const kids = (await call("GET", "/api/children", { token })).body;
   const first = kids.activeId;
-  const created = await call("POST", "/api/children", { token, body: { name: "Madina", grade: 2 } });
+  assert.equal((await call("POST", "/api/children", { token, body: { name: "Madina", grade: 2 } })).status, 403, "ota-ona PIN-kodisiz bola profili yaratib bo‘lmaydi");
+  assert.equal((await call("POST", "/api/parent/pin", { token, body: { pin: "1234", password: "secret123" } })).status, 200);
+  const parent = (await call("POST", "/api/parent/verify", { token, body: { pin: "1234" } })).body.parentToken;
+  const created = await call("POST", "/api/children", { token, parent, body: { name: "Madina", grade: 2 } });
   assert.equal(created.status, 201);
   const second = created.body.child.id;
 

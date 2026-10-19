@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { api, childStore } from "@/lib/api";
 
 type BtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost"; loading?: boolean };
 
@@ -102,6 +103,23 @@ export function AppHeader() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [kids, setKids] = useState<{ id: string; name: string }[]>([]);
+  const [activeKid, setActiveKid] = useState("");
+  useEffect(() => {
+    if (!user) return;
+    api<{ children: { id: string; name: string }[]; activeId: string }>("/api/children")
+      .then((r) => {
+        setKids(r.children);
+        setActiveKid(r.activeId);
+      })
+      .catch(() => {});
+  }, [user]);
+  const switchKid = (id: string) => {
+    childStore.set(id);
+    // Sahifani to‘liq yangilaymiz: oldingi bola ma’lumoti xotirada qolib, aralashib ketmasin.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = "/dashboard";
+  };
   const links = [
     { href: "/dashboard", label: "Bosh sahifa" },
     { href: "/tests", label: "Testlar" },
@@ -110,6 +128,7 @@ export function AppHeader() {
     { href: "/album", label: "Albom" },
     { href: "/progress", label: "Natijalar" },
     { href: "/profile", label: "Profil" },
+    { href: "/parent", label: "Ota-onalar" },
   ];
   return (
     <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/85 backdrop-blur">
@@ -117,6 +136,20 @@ export function AppHeader() {
         <Logo />
         {user && (
           <>
+            {kids.length > 1 && (
+              <select
+                aria-label="Bola profili"
+                value={activeKid}
+                onChange={(e) => switchKid(e.target.value)}
+                className="max-w-36 rounded-xl border-2 border-blue-100 bg-white px-2 py-1.5 text-sm font-bold text-blue-800"
+              >
+                {kids.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    👤 {k.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <nav className="hidden items-center gap-1 md:flex">
               {links.map((l) => (
                 <Link key={l.href} href={l.href} className="rounded-xl px-3 py-2 font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-700">

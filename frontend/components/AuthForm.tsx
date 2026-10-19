@@ -18,6 +18,7 @@ const registerSchema = z
     email: z.string().trim().email("Email manzilni to‘g‘ri kiriting"),
     password: z.string().min(6, "Parol kamida 6 belgidan iborat bo‘lsin"),
     confirm: z.string(),
+    consent: z.literal("on", { error: "Davom etish uchun ota-ona roziligi kerak" }),
   })
   .refine((d) => d.password === d.confirm, { message: "Parollar bir xil emas", path: ["confirm"] });
 
@@ -48,7 +49,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setBusy(true);
     try {
       const d = parsed.data as { name?: string; email: string; password: string };
-      const u = mode === "login" ? await login(d.email, d.password) : await register(d.name!, d.email, d.password);
+      const u = mode === "login" ? await login(d.email, d.password) : await register(d.name!, d.email, d.password, true);
       if (mode === "register") {
         setSuccess(true);
         await new Promise((r) => setTimeout(r, 900));
@@ -78,6 +79,21 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               <Field label="Email manzil" name="email" type="email" autoComplete="email" placeholder="ota-ona@email.uz" error={errors.email} />
               <Field label="Parol" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} error={errors.password} />
               {mode === "register" && <Field label="Parolni tasdiqlang" name="confirm" type="password" autoComplete="new-password" error={errors.confirm} />}
+              {mode === "register" && (
+                <div>
+                  <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-slate-700">
+                    <input type="checkbox" name="consent" className="mt-1 h-5 w-5 shrink-0 accent-blue-600" aria-invalid={!!errors.consent} />
+                    <span>
+                      Men bolaning ota-onasi (vasiysi)man va{" "}
+                      <Link href="/privacy" target="_blank" className="text-blue-700 underline">
+                        Maxfiylik siyosati
+                      </Link>
+                      ga roziman.
+                    </span>
+                  </label>
+                  {errors.consent && <p className="mt-1 text-sm font-semibold text-red-600">⚠ {errors.consent}</p>}
+                </div>
+              )}
               <Button type="submit" loading={busy} className="w-full">
                 {mode === "login" ? "Kirish" : "Ro‘yxatdan o‘tish"}
               </Button>

@@ -10,6 +10,8 @@ import { ApiError, isDbUnavailable } from "./errors.js";
 import { findUserById, findUserByEmail, createAccount, listChildren, resolveChild, createChild, updateChild, publicUser } from "./store.js";
 import { startQuiz, activeQuiz, answerQuiz, finishQuiz, getResult, getProgress, listTests } from "./quizService.js";
 import { TESTS } from "./tests.js";
+import { limit, reset as resetLimit } from "./rateLimit.js";
+import { hasConsent, recordConsent, pinStatus, setPin, checkPin, overview, deleteChild, deleteAccount, requestPasswordReset, resetPassword } from "./parent.js";
 import { listShop, buyItem, equipItem, getDaily, answerDaily, getWeekly, claimWeekly, listHeroes, assertHeroUnlocked } from "./gamification.js";
 import { SUBJECTS, GRADES } from "./questions/index.js";
 
@@ -20,6 +22,8 @@ const RATE_MAX = Number(process.env.RATE_LIMIT_MAX) || 20;
 const VERCEL_ORIGIN = /^https:\/\/multikids[\w-]*\.vercel\.app$/;
 
 const app = express();
+// Vercel orqasida haqiqiy mijoz IP si X-Forwarded-For dan olinadi (cheklovlar IP bo‘yicha ishlaydi).
+app.set("trust proxy", 1);
 // Token Authorization sarlavhasida yuboriladi (cookie emas), shuning uchun loyiha domenlarini ruxsat etish xavfsiz.
 app.use(cors({ origin: (origin, cb) => cb(null, !origin || CLIENT_ORIGIN.includes(origin) || VERCEL_ORIGIN.test(origin)) }));
 app.use(express.json({ limit: "50kb" }));
@@ -55,15 +59,34 @@ async function auth(req, _res, next) {
   next();
 }
 
-// Oddiy kirish urinishlari cheklovchisi (IP bo'yicha, 15 daqiqada 20 ta). Serverless'da har bir nusxa uchun alohida.
-const attempts = new Map();
-function rateLimit(req, _res, next) {
-  const now = Date.now();
-  const rec = attempts.get(req.ip) ?? { count: 0, reset: now + 15 * 60_000 };
-  if (now > rec.reset) Object.assign(rec, { count: 0, reset: now + 15 * 60_000 });
-  rec.count++;
-  attempts.set(req.ip, rec);
-  if (rec.count > RATE_MAX) throw new ApiError(429, "Juda ko‘p urinish. Birozdan keyin qayta urinib ko‘ring.");
+// Urinishlar cheklovi bazada saqlanadi (rateLimit.js) — serverless nusxalari orasida umumiy.
+const rateLimit = (name, max = RATE_MAX, windowSec = 900) => async (req, _res, next) => {
+  await limit(`${name}:ip:${req.ip}`, max, windowSec);
+  next();
+};
+
+/** Foydalanuvchi + faol bola ma’lumoti; rozilik holati bilan. */
+async function userPayload(user, child) {
+  return { ...publicUser(user, child), needsConsent: !(await hasConsent(user.id)) };
+}
+
+/** Bolalar ma’lumotini qayta ishlashdan oldin ota-ona roziligi shart. */
+async function requireConsent(req, _res, next) {
+  if (!(await hasConsent(req.user.id))) throw new ApiError(409, "Avval ota-ona roziligini bering (Maxfiylik siyosati).");
+  next();
+}
+
+/** Ota-ona bo‘limi: PIN orqali olingan qisqa muddatli token (X-Parent-Token). */
+function parentOnly(req, _res, next) {
+  const token = req.headers["x-parent-token"];
+  if (!token) throw new ApiError(403, "Ota-ona PIN-kodi kerak");
+  try {
+    const p = jwt.verify(String(token), jwtSecret(), { algorithms: ["HS256"] });
+    if (p.scope !== "parent" || p.sub !== req.user.id || p.tv !== req.user.token_version) throw new Error("scope");
+  } catch (err) {
+    if (err instanceof ConfigError) throw err;
+    throw new ApiError(403, "Ota-ona sessiyasi tugagan. PIN-kodni qayta kiriting");
+  }
   next();
 }
 
@@ -72,31 +95,60 @@ const registerSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 harfdan iborat bo‘lsin").max(30, "Ism juda uzun"),
   email: z.string().trim().toLowerCase().email("Email manzil noto‘g‘ri"),
   password: z.string().min(6, "Parol kamida 6 belgidan iborat bo‘lsin").max(100),
+  consent: z.literal(true, { error: "Maxfiylik siyosatiga rozilik berish shart" }),
 });
 
-app.post("/api/auth/register", rateLimit, async (req, res) => {
+app.post("/api/auth/register", rateLimit("register"), async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) throw bad(parsed.error.issues[0].message);
   const { name, email, password } = parsed.data;
   const user = await createAccount({ name, email, passwordHash: await bcrypt.hash(password, 10) });
   if (!user) throw new ApiError(409, "Bu email bilan hisob allaqachon mavjud");
+  await recordConsent(user.id);
   const child = await resolveChild(user.id);
-  res.status(201).json({ token: sign(user), user: publicUser(user, child) });
+  res.status(201).json({ token: sign(user), user: await userPayload(user, child) });
+});
+
+app.post("/api/consent", auth, async (req, res) => {
+  if (req.body?.accept !== true) throw bad("Rozilik berilmadi");
+  await recordConsent(req.user.id);
+  res.json({ user: await userPayload(req.user, req.child) });
 });
 
 const loginSchema = z.object({ email: z.string().trim().toLowerCase().email("Email manzil noto‘g‘ri"), password: z.string().min(1, "Parolni kiriting") });
 
-app.post("/api/auth/login", rateLimit, async (req, res) => {
+app.post("/api/auth/login", rateLimit("login"), async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) throw bad(parsed.error.issues[0].message);
+  // Bitta akkauntni turli IP lardan tanlab ochishga urinishlardan himoya: email bo‘yicha ham cheklanadi.
+  const emailKey = `login:email:${parsed.data.email}`;
+  await limit(emailKey, 10, 900);
   const user = await findUserByEmail(parsed.data.email);
   if (!user || !(await bcrypt.compare(parsed.data.password, user.password_hash))) throw new ApiError(401, "Email yoki parol noto‘g‘ri");
+  await resetLimit(emailKey);
   const child = await resolveChild(user.id);
-  res.json({ token: sign(user), user: publicUser(user, child) });
+  res.json({ token: sign(user), user: await userPayload(user, child) });
+});
+
+// --- Parolni tiklash (email orqali) ---
+const appUrl = () => (process.env.APP_URL || CLIENT_ORIGIN.find((o) => o.startsWith("https://")) || CLIENT_ORIGIN[0]).replace(/\/$/, "");
+
+app.post("/api/auth/forgot", rateLimit("forgot", 10, 3600), async (req, res) => {
+  const parsed = z.object({ email: z.string().trim().toLowerCase().email("Email manzil noto‘g‘ri") }).safeParse(req.body);
+  if (!parsed.success) throw bad(parsed.error.issues[0].message);
+  await limit(`forgot:email:${parsed.data.email}`, 3, 3600);
+  res.json(await requestPasswordReset(parsed.data.email, appUrl()));
+});
+
+app.post("/api/auth/reset", rateLimit("reset", 10, 3600), async (req, res) => {
+  const parsed = z.object({ token: z.string().min(20).max(200), password: z.string().min(6, "Parol kamida 6 belgidan iborat bo‘lsin").max(100) }).safeParse(req.body);
+  if (!parsed.success) throw bad(parsed.error.issues[0].message);
+  await resetPassword(parsed.data.token, parsed.data.password);
+  res.json({ ok: true });
 });
 
 // --- Profil ---
-app.get("/api/me", auth, (req, res) => res.json({ user: publicUser(req.user, req.child) }));
+app.get("/api/me", auth, async (req, res) => res.json({ user: await userPayload(req.user, req.child) }));
 
 const profileSchema = z.object({
   name: z.string().trim().min(2).max(30).optional(),
@@ -124,7 +176,7 @@ app.patch("/api/me", auth, async (req, res) => {
   if (!parsed.success) throw bad("Ma’lumotlar noto‘g‘ri");
   await assertHeroUnlocked(req.child, parsed.data.mascot);
   await updateChild(req.child.id, parsed.data);
-  res.json({ user: publicUser(req.user, await resolveChild(req.user.id, req.child.id)) });
+  res.json({ user: await userPayload(req.user, await resolveChild(req.user.id, req.child.id)) });
 });
 
 // --- Bola profillari ---
@@ -139,7 +191,7 @@ const childSchema = z.object({
   mascot: z.enum(MASCOTS).optional(),
 });
 
-app.post("/api/children", auth, async (req, res) => {
+app.post("/api/children", auth, parentOnly, async (req, res) => {
   const parsed = childSchema.safeParse(req.body);
   if (!parsed.success) throw bad(parsed.error.issues[0].message);
   const c = await createChild(req.user.id, parsed.data);
@@ -155,7 +207,7 @@ const startSchema = z.object({
   testId: z.enum(TEST_IDS).optional(),
 });
 
-app.post("/api/quiz/start", auth, async (req, res) => {
+app.post("/api/quiz/start", auth, requireConsent, async (req, res) => {
   const parsed = startSchema.safeParse(req.body);
   if (!parsed.success) throw bad("Sinf yoki fan noto‘g‘ri");
   res.json(await startQuiz(req.child, parsed.data));
@@ -188,7 +240,7 @@ app.get("/api/tests", auth, async (req, res) => {
 });
 // --- Do‘kon, kun savoli, haftalik topshiriqlar, albom ---
 app.get("/api/shop", auth, async (req, res) => res.json(await listShop(req.child)));
-app.post("/api/shop/:id/buy", auth, async (req, res) => res.json(await buyItem(req.child, req.params.id)));
+app.post("/api/shop/:id/buy", auth, requireConsent, async (req, res) => res.json(await buyItem(req.child, req.params.id)));
 app.post("/api/shop/:id/equip", auth, async (req, res) => {
   const parsed = z.object({ equipped: z.boolean() }).safeParse(req.body);
   if (!parsed.success) throw bad("Noto‘g‘ri so‘rov");
@@ -203,6 +255,43 @@ app.post("/api/daily/answer", auth, async (req, res) => {
 app.get("/api/weekly", auth, async (req, res) => res.json(await getWeekly(req.child)));
 app.post("/api/weekly/:id/claim", auth, async (req, res) => res.json(await claimWeekly(req.child, req.params.id)));
 app.get("/api/heroes", auth, async (req, res) => res.json({ heroes: await listHeroes(req.child), current: req.child.mascot }));
+// --- Ota-ona bo‘limi ---
+app.get("/api/parent/status", auth, async (req, res) => res.json(await pinStatus(req.user.id)));
+
+const pinSchema = z.string().regex(/^\d{4,6}$/, "PIN-kod 4–6 raqamdan iborat bo‘lsin");
+
+app.post("/api/parent/pin", auth, rateLimit("pin-set", 10, 3600), async (req, res) => {
+  const parsed = z.object({ pin: pinSchema, password: z.string().min(1, "Parolni kiriting") }).safeParse(req.body);
+  if (!parsed.success) throw bad(parsed.error.issues[0].message);
+  await setPin(req.user, parsed.data);
+  res.json({ ok: true });
+});
+
+app.post("/api/parent/verify", auth, async (req, res) => {
+  const parsed = z.object({ pin: pinSchema }).safeParse(req.body);
+  if (!parsed.success) throw bad(parsed.error.issues[0].message);
+  const key = `pin:${req.user.id}`;
+  await limit(key, 5, 900, "PIN-kod juda ko‘p marta noto‘g‘ri kiritildi. 15 daqiqadan keyin urinib ko‘ring.");
+  if (!(await checkPin(req.user, parsed.data.pin))) throw new ApiError(401, "PIN-kod noto‘g‘ri");
+  await resetLimit(key);
+  const expiresIn = 15 * 60;
+  res.json({ parentToken: jwt.sign({ sub: req.user.id, scope: "parent", tv: req.user.token_version }, jwtSecret(), { expiresIn }), expiresIn });
+});
+
+app.get("/api/parent/overview", auth, parentOnly, async (req, res) => {
+  res.json(await overview(req.user.id, req.query.child ?? req.child.id, req.child.locale));
+});
+
+app.delete("/api/parent/children/:id", auth, parentOnly, async (req, res) => {
+  await deleteChild(req.user.id, req.params.id, req.body?.confirmName);
+  res.json({ ok: true });
+});
+
+app.delete("/api/parent/account", auth, parentOnly, rateLimit("delete-account", 5, 3600), async (req, res) => {
+  await deleteAccount(req.user, { password: String(req.body?.password ?? ""), confirm: req.body?.confirm });
+  res.json({ ok: true });
+});
+
 app.get("/api/progress", auth, async (req, res) => res.json(await getProgress(req.child, SUBJECTS)));
 
 app.get("/api/health", async (_req, res) => {

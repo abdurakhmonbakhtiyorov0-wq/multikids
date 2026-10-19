@@ -22,7 +22,7 @@ export type ChildInfo = {
   streak: number;
   bestStreak: number;
 };
-export type User = { id: string; name: string; email: string; profile: Profile; createdAt: string; child?: ChildInfo };
+export type User = { id: string; name: string; email: string; profile: Profile; createdAt: string; child?: ChildInfo; needsConsent?: boolean };
 
 export type QuizQuestion = { id: string; prompt: string; options: string[]; difficulty: string; topic?: string; image?: { src: string; alt: string } | null };
 export type QuizMode = "quiz" | "mistakes" | "exam";
@@ -127,6 +127,50 @@ export const tokenStore = {
   },
 };
 
+const CHILD_KEY = "multikids-child";
+const PARENT_KEY = "multikids-parent";
+
+/** Faol bola profili (qurilmada saqlanadi, server har so‘rovda ota-onaga tegishliligini tekshiradi). */
+export const childStore = {
+  get: () => {
+    try {
+      return localStorage.getItem(CHILD_KEY);
+    } catch {
+      return null;
+    }
+  },
+  set: (id: string | null) => {
+    try {
+      if (id) localStorage.setItem(CHILD_KEY, id);
+      else localStorage.removeItem(CHILD_KEY);
+    } catch {}
+  },
+};
+
+/** Ota-ona PIN sessiyasi: faqat shu brauzer oynasi uchun (sessionStorage), 15 daqiqa. */
+export const parentStore = {
+  get: () => {
+    try {
+      const raw = sessionStorage.getItem(PARENT_KEY);
+      if (!raw) return null;
+      const { token, exp } = JSON.parse(raw) as { token: string; exp: number };
+      if (Date.now() > exp) {
+        sessionStorage.removeItem(PARENT_KEY);
+        return null;
+      }
+      return token;
+    } catch {
+      return null;
+    }
+  },
+  set: (token: string | null, expiresInSec = 900) => {
+    try {
+      if (token) sessionStorage.setItem(PARENT_KEY, JSON.stringify({ token, exp: Date.now() + expiresInSec * 1000 - 5000 }));
+      else sessionStorage.removeItem(PARENT_KEY);
+    } catch {}
+  },
+};
+
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   if (!API_URL) throw new ApiError("Backend manzili sozlanmagan (NEXT_PUBLIC_API_URL).", 0);
   const token = tokenStore.get();
@@ -134,7 +178,12 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   try {
     res = await fetch(`${API_URL}${path}`, {
       method: init.method ?? "GET",
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(childStore.get() ? { "X-Child-Id": childStore.get()! } : {}),
+        ...(parentStore.get() ? { "X-Parent-Token": parentStore.get()! } : {}),
+      },
       body: init.body ? JSON.stringify(init.body) : undefined,
     });
   } catch {

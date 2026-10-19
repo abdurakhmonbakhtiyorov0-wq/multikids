@@ -2,13 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, tokenStore, type Profile, type Settings, type User } from "./api";
+import { api, childStore, parentStore, tokenStore, type Profile, type Settings, type User } from "./api";
+import { ConsentGate } from "@/components/ConsentGate";
 
 type AuthCtx = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  register: (name: string, email: string, password: string) => Promise<User>;
+  register: (name: string, email: string, password: string, consent: boolean) => Promise<User>;
   logout: () => void;
   updateProfile: (patch: Partial<Profile> & Settings) => Promise<User>;
   refresh: () => Promise<void>;
@@ -21,7 +22,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const request = tokenStore.get() ? api<{ user: User }>("/api/me") : Promise.reject({ status: 0 });
+    const request = tokenStore.get()
+      ? api<{ user: User }>("/api/me").catch((e) => {
+          // Saqlangan bola profili endi mavjud emas (o‘chirilgan): birinchi profilga qaytamiz.
+          if (e?.status === 404 && childStore.get()) {
+            childStore.set(null);
+            return api<{ user: User }>("/api/me");
+          }
+          throw e;
+        })
+      : Promise.reject({ status: 0 });
     request
       .then((r) => setUser(r.user))
       .catch((e) => {
@@ -37,8 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return r.user;
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string) => {
-    const r = await api<{ token: string; user: User }>("/api/auth/register", { method: "POST", body: { name, email, password } });
+  const register = useCallback(async (name: string, email: string, password: string, consent: boolean) => {
+    const r = await api<{ token: string; user: User }>("/api/auth/register", { method: "POST", body: { name, email, password, consent } });
     tokenStore.set(r.token);
     setUser(r.user);
     return r.user;
@@ -46,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     tokenStore.set(null);
+    childStore.set(null);
+    parentStore.set(null);
     setUser(null);
   }, []);
 
@@ -53,6 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const r = await api<{ user: User }>("/api/me", { method: "PATCH", body: patch });
     setUser(r.user);
     return r.user;
+  }, []);
+
+  const acceptConsent = useCallback(async () => {
+    const r = await api<{ user: User }>("/api/consent", { method: "POST", body: { accept: true } });
+    setUser(r.user);
   }, []);
 
   /** Ball, daraja va kiyim o‘zgargandan keyin foydalanuvchi ma’lumotini serverdan yangilaydi. */
@@ -63,7 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  return <Ctx.Provider value={{ user, loading, login, register, logout, updateProfile, refresh }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ user, loading, login, register, logout, updateProfile, refresh }}>
+      {children}
+      {user?.needsConsent && <ConsentGate onAccept={acceptConsent} onLogout={logout} />}
+    </Ctx.Provider>
+  );
 }
 
 export function useAuth() {

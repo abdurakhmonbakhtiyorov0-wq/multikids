@@ -11,10 +11,10 @@ export async function boot() {
   const base = `http://localhost:${server.address().port}`;
   let n = 0;
 
-  async function call(method, path, { token, body, child } = {}) {
+  async function call(method, path, { token, body, child, parent } = {}) {
     const res = await fetch(base + path, {
       method,
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(child ? { "X-Child-Id": child } : {}) },
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(child ? { "X-Child-Id": child } : {}), ...(parent ? { "X-Parent-Token": parent } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
     return { status: res.status, body: await res.json().catch(() => ({})) };
@@ -62,8 +62,17 @@ export async function boot() {
     return r.body;
   }
 
+  /** PIN o‘rnatib, ota-ona tokenini qaytaradi. */
+  async function parentToken(token, pin = "1234", password = "secret123") {
+    const set = await call("POST", "/api/parent/pin", { token, body: { pin, password } });
+    assert.equal(set.status, 200, JSON.stringify(set.body));
+    const v = await call("POST", "/api/parent/verify", { token, body: { pin } });
+    assert.equal(v.status, 200, JSON.stringify(v.body));
+    return v.body.parentToken;
+  }
+
   return {
-    db, call, signup, start, playAll, finish, correctIndexFor, arrangeOptions, loc,
+    db, call, signup, parentToken, start, playAll, finish, correctIndexFor, arrangeOptions, loc,
     async stop() {
       server.close();
       await db.stop();
