@@ -2,11 +2,14 @@
 // Oracle — faqat testlar uchun: savol matnidan to‘g‘ri javob matnini qaytaradi (brauzer to‘g‘ri javobni bilmaydi).
 import http from "node:http";
 
+// Ishlab chiqish serverlari (4000/3000) bilan to‘qnashmaslik uchun boshqa portlar
+process.env.CLIENT_ORIGIN = "http://localhost:3100";
+
 const { startTestDb } = await import("../backend/test-support/db.js");
 const db = await startTestDb();
 const { default: app } = await import("../backend/src/server.js");
 
-app.listen(4000, () => console.log("E2E backend: http://localhost:4000"));
+app.listen(4100, () => console.log("E2E backend: http://localhost:4100"));
 
 http
   .createServer(async (req, res) => {
@@ -26,7 +29,7 @@ http
       res.end(JSON.stringify({ error: String(e) }));
     }
   })
-  .listen(4001, () => console.log("E2E oracle: http://localhost:4001"));
+  .listen(4101, () => console.log("E2E oracle: http://localhost:4101"));
 
 const stop = async () => {
   await db.stop();

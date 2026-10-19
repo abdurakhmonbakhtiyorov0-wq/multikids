@@ -65,7 +65,8 @@ Eski `data/db.json` dan ko‘chirish: `npm run db:import`.
 ```
 cd backend && npm test                    # 40+ test, haqiqiy PostgreSQL (embedded) ustida
 cd frontend && npm run lint && npx tsc --noEmit && npm run build
-cd e2e && npm install && npx playwright install chromium && npx playwright test   # frontend avval yig‘ilgan bo‘lsin
+cd frontend && npm run i18n:check          # barcha matnlar ruscha lug‘atda bormi
+cd e2e && npm install && npm run build && npx playwright test   # haqiqiy Chrome’da (o‘rnatilgan Chrome ishlatiladi; E2E_BROWSER=bundled bo‘lsa Playwright Chromium)
 ```
 
 ## Xavfsizlik va maxfiylik
@@ -79,6 +80,6 @@ cd e2e && npm install && npx playwright install chromium && npx playwright test 
 
 ## Ma’lum cheklovlar
 
-- Interfeys va savollar hozircha o‘zbek tilida (lotin). Rus/kirill tarjimasi qo‘shilmagan.
+- Interfeys uch tilda (o‘zbek lotin/kirill, rus). Savollar bazasi faqat o‘zbek tilida: kirill rejimida o‘zbek tilidagi fanlar avtomatik o‘giriladi, rus rejimida savollar o‘zbekcha qoladi.
 - Offlayn rejimda test yechib bo‘lmaydi (javoblar serverda tekshiriladi); internet uzilsa, javob aloqa tiklangach qayta yuboriladi.
 - Oddiy 3D qahramonlar mavjud modellar asosida; yangi modellar qo‘shilmagan.

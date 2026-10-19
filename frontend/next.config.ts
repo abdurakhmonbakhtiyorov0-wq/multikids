@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // E2E sinovlari alohida papkaga yig‘adi (ishlab chiqish serveri bilan to‘qnashmasligi uchun)
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,

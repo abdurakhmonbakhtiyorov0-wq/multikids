@@ -1,7 +1,7 @@
 import { expect, type Page, type APIRequestContext } from "@playwright/test";
 
-export const API = "http://localhost:4000";
-const ORACLE = "http://localhost:4001";
+export const API = "http://localhost:4100";
+const ORACLE = "http://localhost:4101";
 const TOKEN_KEY = "bilimdon-token";
 
 const SUBJECT_IDS: Record<string, string> = {
@@ -39,20 +39,22 @@ async function quizContext(page: Page) {
 export async function answerCurrent(page: Page, { wrong = false } = {}) {
   const h1 = page.locator("main h1").first();
   await expect(h1).toBeVisible();
-  const prompt = ((await h1.textContent()) ?? "").trim();
-  const img = await page.locator("main img[src^='/questions/']").first().getAttribute("src", { timeout: 500 }).catch(() => null);
-  const { grade, subject } = await quizContext(page);
-  const query = new URLSearchParams({ prompt, grade: String(grade), subject, ...(img ? { img } : {}) });
-  const { correct } = (await (await fetch(`${ORACLE}/answer?${query}`)).json()) as { correct: string[] };
-  expect(correct.length, `oracle: savol topilmadi "${prompt}"`).toBeGreaterThan(0);
-
-  const options = page.locator("main button").filter({ hasText: /^[A-D]/ });
-  const count = await options.count();
-  const texts: string[] = [];
-  for (let i = 0; i < count; i++) texts.push(((await options.nth(i).textContent()) ?? "").trim().replace(/^[A-D]\s*/, ""));
-  const rightIdx = texts.findIndex((t) => correct.includes(t));
-  expect(rightIdx, `to‘g‘ri variant topilmadi: ${correct} / ${texts}`).toBeGreaterThanOrEqual(0);
-  await options.nth(wrong ? (rightIdx + 1) % count : rightIdx).click();
+  // Savol almashganda animatsiya paytida eski sarlavha va yangi variantlar bir lahza aralashib ko‘rinishi mumkin:
+  // sarlavha va variantlar o‘zaro mos kelgunicha (oracle tasdiqlaguncha) qayta o‘qiymiz.
+  await expect(async () => {
+    const prompt = ((await h1.textContent()) ?? "").trim();
+    const img = await page.locator("main img[src^='/questions/']").first().getAttribute("src", { timeout: 300 }).catch(() => null);
+    const { grade, subject } = await quizContext(page);
+    const query = new URLSearchParams({ prompt, grade: String(grade), subject, ...(img ? { img } : {}) });
+    const { correct } = (await (await fetch(`${ORACLE}/answer?${query}`)).json()) as { correct: string[] };
+    const options = page.locator("main button").filter({ hasText: /^[A-D]/ });
+    const count = await options.count();
+    const texts: string[] = [];
+    for (let i = 0; i < count; i++) texts.push(((await options.nth(i).textContent()) ?? "").trim().replace(/^[A-D]s*/, ""));
+    const rightIdx = texts.findIndex((t) => correct.includes(t));
+    expect(rightIdx, `to‘g‘ri variant topilmadi: ${prompt} :: ${correct} / ${texts}`).toBeGreaterThanOrEqual(0);
+    await options.nth(wrong ? (rightIdx + 1) % count : rightIdx).click({ timeout: 2000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 /** Testni oxirigacha yechadi (wrongAt — xato javob beriladigan savol raqamlari, 0 dan). */

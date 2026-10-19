@@ -57,7 +57,7 @@ test("to‘liq yo‘l: ro‘yxatdan o‘tish → qahramon/sinf/fan → test → 
   await page.getByLabel("Hisob paroli (tasdiqlash uchun)").fill("secret123");
   await page.getByRole("button", { name: "PIN o‘rnatish va kirish" }).click();
   await expect(page.getByRole("heading", { name: /Ota-onalar kabineti/ })).toBeVisible();
-  await expect(page.getByText("Topshirilgan testlar")).toBeVisible();
+  await expect(page.getByText("Topshirilgan testlar", { exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "1-bosqich · Boshlang‘ich" })).toBeVisible();
   await expect(page.getByText("Ma’lumot kam: kamida 3 ta test kerak")).toBeVisible();
 });
@@ -141,7 +141,7 @@ test("PWA: manifest, service worker, offline sahifa va API keshlanmaydi", async 
     return out;
   });
   expect(cached.length).toBeGreaterThan(0);
-  expect(cached.filter((u) => u.includes("/api/") || u.includes(":4000"))).toEqual([]);
+  expect(cached.filter((u) => u.includes("/api/") || u.includes(":4100"))).toEqual([]);
 });
 
 test("ota-ona bo‘limi PIN-kodsiz yopiq", async ({ page, request }) => {
@@ -158,7 +158,7 @@ test("til almashtirish: ruscha va o‘zbekcha kirill, tanlov saqlanadi, aralash 
   await page.goto("/dashboard");
   await expect(page.getByText("Salom, Aziz!")).toBeVisible();
 
-  await page.getByRole("radio", { name: "Русский" }).first().click();
+  await page.getByRole("radio", { name: "RU", exact: true }).first().click();
   await expect(page.getByText("Привет, Aziz!")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
   await expect(page.getByText("Salom, Aziz!")).toBeHidden();
@@ -172,11 +172,11 @@ test("til almashtirish: ruscha va o‘zbekcha kirill, tanlov saqlanadi, aralash 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Тесты из 5 уровней" })).toBeVisible();
 
-  await page.getByRole("radio", { name: "Ўзбекча" }).first().click();
+  await page.getByRole("radio", { name: "ЎЗ", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "5 босқичли тестлар" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "uz-Cyrl");
 
-  await page.getByRole("radio", { name: "O‘zbekcha" }).first().click();
+  await page.getByRole("radio", { name: "UZ", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "5 bosqichli testlar" })).toBeVisible();
 });
 

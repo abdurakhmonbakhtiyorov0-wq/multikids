@@ -162,21 +162,20 @@ const WEEKLY_TASKS = [
 ];
 
 async function weeklyMetrics(c, child, week) {
-  const [r, ch] = await Promise.all([
-    c.query(
+  const r = await c.query(
       `SELECT count(*) FILTER (WHERE mode IN ('quiz', 'exam'))::int AS tests,
               coalesce(max(accuracy) FILTER (WHERE mode IN ('quiz', 'exam') AND test_id NOT IN ('level-1', 'level-2')), 0)::int AS best,
               count(DISTINCT subject) FILTER (WHERE mode IN ('quiz', 'exam'))::int AS subjects
          FROM results WHERE child_id = $1 AND (created_at AT TIME ZONE $2)::date BETWEEN $3::date AND ($3::date + 6)`,
       [child.id, child.timezone, week],
-    ),
-    c.query("SELECT count(*)::int AS n FROM daily_challenges WHERE child_id = $1 AND is_correct AND day BETWEEN $2::date AND ($2::date + 6)", [child.id, week]),
-  ]);
+  );
+  const ch = await c.query("SELECT count(*)::int AS n FROM daily_challenges WHERE child_id = $1 AND is_correct AND day BETWEEN $2::date AND ($2::date + 6)", [child.id, week]);
   return { ...r.rows[0], challenges: ch.rows[0].n };
 }
 
 async function weeklyView(c, child, week) {
-  const [m, claimed] = await Promise.all([weeklyMetrics(c, child, week), c.query("SELECT task_id FROM weekly_claims WHERE child_id = $1 AND week_start = $2", [child.id, week])]);
+  const m = await weeklyMetrics(c, child, week);
+  const claimed = await c.query("SELECT task_id FROM weekly_claims WHERE child_id = $1 AND week_start = $2", [child.id, week]);
   const done = new Set(claimed.rows.map((r) => r.task_id));
   const tasks = WEEKLY_TASKS.map((t) => {
     const progress = Math.min(t.target, t.value(m));
