@@ -1,8 +1,8 @@
 import type { Grade, MascotId, RewardId, Subject } from "./data";
 
+// Ishlab chiqarishda NEXT_PUBLIC_API_URL majburiy (Vercel loyihasi sozlamalarida). Faqat lokal ishlab chiqishda localhost:4000 ishlatiladi.
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" && window.location.hostname !== "localhost" ? "https://multikids-two.vercel.app" : "http://localhost:4000");
+  process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && window.location.hostname !== "localhost" ? "" : "http://localhost:4000");
 const TOKEN_KEY = "bilimdon-token";
 
 export type Profile = { mascot: MascotId | null; grade: Grade | null; subject: Subject | null };
@@ -81,6 +81,7 @@ export const tokenStore = {
 };
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  if (!API_URL) throw new ApiError("Backend manzili sozlanmagan (NEXT_PUBLIC_API_URL).", 0);
   const token = tokenStore.get();
   let res: Response;
   try {
