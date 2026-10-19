@@ -38,3 +38,131 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Ko‘rinish sozlamalari ---------- */
+
+/* Katta shrift: butun interfeys rem birligida, shuning uchun hammasi birga kattalashadi. */
+html[data-size="large"] {
+  font-size: 118%;
+}
+html[data-size="xlarge"] {
+  font-size: 135%;
+}
+
+/* Sensorli ekranlarda tugmalar kamida 44px (barmoq uchun qulay). */
+@media (pointer: coarse) {
+  button,
+  select,
+  summary {
+    min-height: 44px;
+  }
+}
+html[data-size="large"] button,
+html[data-size="xlarge"] button {
+  min-height: 3rem;
+}
+
+/* Qorong‘i mavzu: Tailwind rang o‘zgaruvchilari qayta belgilanadi, komponentlarga tegilmaydi. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-blue-50: #1a2a4a;
+  --color-blue-100: #243a63;
+  --color-blue-200: #31497a;
+  --color-blue-300: #4a67a3;
+  --color-slate-50: #1a2a4a;
+  --color-slate-100: #223356;
+  --color-red-50: #3b1d27;
+  --color-red-100: #4a2230;
+  --color-red-200: #6b2d3d;
+  --color-rose-50: #3b1d27;
+  --color-rose-100: #4a2230;
+  --color-rose-200: #6b2d3d;
+  --color-emerald-50: #12342b;
+  --color-emerald-100: #16443a;
+  --color-amber-50: #3b3017;
+  --color-amber-100: #4a3b17;
+  --color-violet-100: #32295a;
+  --color-orange-100: #4a2f1a;
+  --color-lime-100: #2f3d17;
+}
+html[data-theme="dark"] body {
+  background-color: #0b1426;
+  color: #e6efff;
+  background-image: radial-gradient(circle at 10% 0%, #14264a 0, transparent 40%), radial-gradient(circle at 100% 30%, #112042 0, transparent 35%);
+}
+html[data-theme="dark"] .bg-white {
+  background-color: #15213a;
+}
+html[data-theme="dark"] .bg-white\/85 {
+  background-color: rgb(21 33 58 / 0.85);
+}
+html[data-theme="dark"] .bg-white\/90 {
+  background-color: rgb(21 33 58 / 0.9);
+}
+html[data-theme="dark"] .focus\:bg-white:focus {
+  background-color: #15213a;
+}
+html[data-theme="dark"] .via-white {
+  --tw-gradient-via: #15213a;
+}
+html[data-theme="dark"] .to-white {
+  --tw-gradient-to: #15213a;
+}
+html[data-theme="dark"] .text-blue-950 {
+  color: #eaf1ff;
+}
+html[data-theme="dark"] .text-blue-900 {
+  color: #dbe7ff;
+}
+html[data-theme="dark"] .text-blue-800 {
+  color: #c4d6ff;
+}
+html[data-theme="dark"] .text-blue-700,
+html[data-theme="dark"] .hover\:text-blue-700:hover {
+  color: #9bbcff;
+}
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-slate-700 {
+  color: #d5deee;
+}
+html[data-theme="dark"] .text-slate-600 {
+  color: #b7c3da;
+}
+html[data-theme="dark"] .text-slate-500 {
+  color: #9aa9c4;
+}
+html[data-theme="dark"] .text-slate-400 {
+  color: #7f8fae;
+}
+html[data-theme="dark"] .text-emerald-700,
+html[data-theme="dark"] .text-emerald-800 {
+  color: #6ee7b7;
+}
+html[data-theme="dark"] .text-amber-700,
+html[data-theme="dark"] .text-amber-800,
+html[data-theme="dark"] .text-amber-900 {
+  color: #fcd34d;
+}
+html[data-theme="dark"] .text-red-600,
+html[data-theme="dark"] .text-red-700,
+html[data-theme="dark"] .text-red-800 {
+  color: #fca5a5;
+}
+html[data-theme="dark"] .text-rose-700,
+html[data-theme="dark"] .text-rose-800,
+html[data-theme="dark"] .text-rose-900 {
+  color: #fda4af;
+}
+html[data-theme="dark"] .text-violet-800 {
+  color: #c4b5fd;
+}
+html[data-theme="dark"] .text-orange-800 {
+  color: #fdba74;
+}
+html[data-theme="dark"] .text-lime-800 {
+  color: #bef264;
+}
+/* Ko‘k kartochkadagi oq/och matn qorong‘i mavzuda ham och qoladi */
+html[data-theme="dark"] .text-blue-100 {
+  color: #dbeafe;
+}

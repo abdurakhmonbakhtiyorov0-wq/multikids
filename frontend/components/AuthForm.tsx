@@ -1,11 +1,13 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import { Alert, Button, Card, Field, Logo } from "./ui";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { nextStepFor, useAuth } from "@/lib/auth";
 
 const loginSchema = z.object({
@@ -23,6 +25,7 @@ const registerSchema = z
   .refine((d) => d.password === d.confirm, { message: "Parollar bir xil emas", path: ["confirm"] });
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
+  const t = useT();
   const { login, register, user, loading } = useAuth();
   const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -40,7 +43,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     const parsed = (mode === "login" ? loginSchema : registerSchema).safeParse(data);
     if (!parsed.success) {
       const errs: Record<string, string> = {};
-      for (const i of parsed.error.issues) errs[String(i.path[0])] ??= i.message;
+      for (const i of parsed.error.issues) errs[String(i.path[0])] ??= t(i.message);
       setErrors(errs);
       return;
     }
@@ -56,46 +59,47 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       }
       router.replace(nextStepFor(u));
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : "Xatolik yuz berdi");
+      setServerError(err instanceof Error ? err.message : t("Xatolik yuz berdi"));
       setBusy(false);
     }
   }
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-10">
-      <div className="flex justify-center">
+      <div className="flex items-center justify-between">
         <Logo />
+        <LanguageSwitcher />
       </div>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         <Card>
-          <h1 className="text-2xl font-black text-blue-950">{mode === "login" ? "Qaytganingdan xursandmiz!" : "Xush kelibsiz!"}</h1>
-          <p className="mb-5 mt-1 text-slate-500">{mode === "login" ? "Hisobingizga kiring" : "Yangi hisob yarating — bu bir daqiqa oladi"}</p>
+          <h1 className="text-2xl font-black text-blue-950">{mode === "login" ? t("Qaytganingdan xursandmiz!") : t("Xush kelibsiz!")}</h1>
+          <p className="mb-5 mt-1 text-slate-500">{mode === "login" ? t("Hisobingizga kiring") : t("Yangi hisob yarating — bu bir daqiqa oladi")}</p>
           {success ? (
-            <Alert tone="info">🎉 Ro‘yxatdan muvaffaqiyatli o‘tdingiz! Endi qahramon tanlaymiz…</Alert>
+            <Alert tone="info">{t("🎉 Ro‘yxatdan muvaffaqiyatli o‘tdingiz! Endi qahramon tanlaymiz…")}</Alert>
           ) : (
             <form onSubmit={onSubmit} noValidate className="space-y-4">
               {serverError && <Alert>{serverError}</Alert>}
-              {mode === "register" && <Field label="Ismingiz" name="name" autoComplete="nickname" placeholder="Masalan: Aziz" error={errors.name} />}
-              <Field label="Email manzil" name="email" type="email" autoComplete="email" placeholder="ota-ona@email.uz" error={errors.email} />
-              <Field label="Parol" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} error={errors.password} />
-              {mode === "register" && <Field label="Parolni tasdiqlang" name="confirm" type="password" autoComplete="new-password" error={errors.confirm} />}
+              {mode === "register" && <Field label={t("Ismingiz")} name="name" autoComplete="nickname" placeholder={t("Masalan: Aziz")} error={errors.name} />}
+              <Field label={t("Email manzil")} name="email" type="email" autoComplete="email" placeholder={t("ota-ona@email.uz")} error={errors.email} />
+              <Field label={t("Parol")} name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} error={errors.password} />
+              {mode === "register" && <Field label={t("Parolni tasdiqlang")} name="confirm" type="password" autoComplete="new-password" error={errors.confirm} />}
               {mode === "register" && (
                 <div>
                   <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-slate-700">
                     <input type="checkbox" name="consent" className="mt-1 h-5 w-5 shrink-0 accent-blue-600" aria-invalid={!!errors.consent} />
                     <span>
-                      Men bolaning ota-onasi (vasiysi)man va{" "}
+                      {t("Men bolaning ota-onasi (vasiysi)man va")}{" "}
                       <Link href="/privacy" target="_blank" className="text-blue-700 underline">
-                        Maxfiylik siyosati
+                        {t("Maxfiylik siyosati")}
                       </Link>
-                      ga roziman.
+                      {t("ga roziman.")}
                     </span>
                   </label>
                   {errors.consent && <p className="mt-1 text-sm font-semibold text-red-600">⚠ {errors.consent}</p>}
                 </div>
               )}
               <Button type="submit" loading={busy} className="w-full">
-                {mode === "login" ? "Kirish" : "Ro‘yxatdan o‘tish"}
+                {mode === "login" ? t("Kirish") : t("Ro‘yxatdan o‘tish")}
               </Button>
             </form>
           )}
@@ -103,20 +107,20 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             {mode === "login" ? (
               <>
                 <Link href="/forgot" className="text-blue-700 hover:underline">
-                  Parolni unutdingizmi?
+                  {t("Parolni unutdingizmi?")}
                 </Link>
                 <span>
-                  Hisobingiz yo‘qmi?{" "}
+                  {t("Hisobingiz yo‘qmi?")}{" "}
                   <Link href="/register" className="text-blue-700 hover:underline">
-                    Ro‘yxatdan o‘ting
+                    {t("Ro‘yxatdan o‘ting")}
                   </Link>
                 </span>
               </>
             ) : (
               <span>
-                Hisobingiz bormi?{" "}
+                {t("Hisobingiz bormi?")}{" "}
                 <Link href="/login" className="text-blue-700 hover:underline">
-                  Kirish
+                  {t("Kirish")}
                 </Link>
               </span>
             )}

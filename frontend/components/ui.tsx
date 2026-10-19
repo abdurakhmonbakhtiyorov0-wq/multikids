@@ -1,10 +1,13 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api, childStore } from "@/lib/api";
+import { useOnline } from "@/lib/online";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 type BtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost"; loading?: boolean };
 
@@ -31,10 +34,11 @@ export function Card({ className = "", children }: { className?: string; childre
 }
 
 export function Logo() {
+  const t = useT();
   return (
     <Link href="/" className="flex items-center gap-2 text-xl font-black text-blue-700">
-      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-600 text-white shadow-[0_4px_0_#1e40af]">M</span>
-      MultiKids
+      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-600 text-white shadow-[0_4px_0_#1e40af]">{t("M")}</span>
+      {t("MultiKids")}
     </Link>
   );
 }
@@ -45,6 +49,7 @@ export function Field({
   type = "text",
   ...rest
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
+  const t = useT();
   const [show, setShow] = useState(false);
   const isPwd = type === "password";
   const id = rest.name;
@@ -67,9 +72,9 @@ export function Field({
             type="button"
             onClick={() => setShow((s) => !s)}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl px-3 py-1.5 text-sm font-bold text-blue-700 hover:bg-blue-100"
-            aria-label={show ? "Parolni yashirish" : "Parolni ko‘rsatish"}
+            aria-label={show ? t("Parolni yashirish") : t("Parolni ko‘rsatish")}
           >
-            {show ? "Yashirish" : "Ko‘rsatish"}
+            {show ? t("Yashirish") : t("Ko‘rsatish")}
           </button>
         )}
       </div>
@@ -91,18 +96,21 @@ export function Alert({ children, tone = "error" }: { children: React.ReactNode;
 }
 
 export function PageLoader() {
+  const t = useT();
   return (
     <div className="grid flex-1 place-items-center py-24" role="status">
       <div className="h-14 w-14 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-      <span className="sr-only">Yuklanmoqda…</span>
+      <span className="sr-only">{t("Yuklanmoqda…")}</span>
     </div>
   );
 }
 
 export function AppHeader() {
+  const t = useT();
   const { user, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const online = useOnline();
   const [kids, setKids] = useState<{ id: string; name: string }[]>([]);
   const [activeKid, setActiveKid] = useState("");
   useEffect(() => {
@@ -132,13 +140,19 @@ export function AppHeader() {
   ];
   return (
     <header className="sticky top-0 z-30 border-b border-blue-100 bg-white/85 backdrop-blur">
+      {!online && (
+        <div role="status" className="bg-amber-100 px-4 py-1.5 text-center text-sm font-bold text-amber-900">
+          {t("📡 Internet yo‘q. Test va natijalar uchun aloqa kerak — tiklangach davom etasiz.")}
+        </div>
+      )}
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Logo />
+        <LanguageSwitcher className="ml-auto" />
         {user && (
           <>
             {kids.length > 1 && (
               <select
-                aria-label="Bola profili"
+                aria-label={t("Bola profili")}
                 value={activeKid}
                 onChange={(e) => switchKid(e.target.value)}
                 className="max-w-36 rounded-xl border-2 border-blue-100 bg-white px-2 py-1.5 text-sm font-bold text-blue-800"
@@ -153,7 +167,7 @@ export function AppHeader() {
             <nav className="hidden items-center gap-1 md:flex">
               {links.map((l) => (
                 <Link key={l.href} href={l.href} className="rounded-xl px-3 py-2 font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-700">
-                  {l.label}
+                  {t(l.label)}
                 </Link>
               ))}
               <button
@@ -163,10 +177,10 @@ export function AppHeader() {
                 }}
                 className="ml-2 rounded-xl px-3 py-2 font-bold text-slate-500 hover:bg-red-50 hover:text-red-600"
               >
-                Chiqish
+                {t("Chiqish")}
               </button>
             </nav>
-            <button className="rounded-xl p-2 font-bold text-blue-700 ring-1 ring-blue-200 md:hidden" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Menyu">
+            <button className="rounded-xl p-2 font-bold text-blue-700 ring-1 ring-blue-200 md:hidden" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={t("Menyu")}>
               ☰
             </button>
           </>
@@ -176,7 +190,7 @@ export function AppHeader() {
         <nav className="flex flex-col gap-1 border-t border-blue-100 px-4 py-2 md:hidden">
           {links.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 font-bold text-slate-700 hover:bg-blue-50">
-              {l.label}
+              {t(l.label)}
             </Link>
           ))}
           <button
@@ -186,7 +200,7 @@ export function AppHeader() {
             }}
             className="rounded-xl px-3 py-3 text-left font-bold text-red-600 hover:bg-red-50"
           >
-            Chiqish
+            {t("Chiqish")}
           </button>
         </nav>
       )}

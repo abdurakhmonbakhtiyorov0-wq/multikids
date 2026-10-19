@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AppHeader, Alert, Card, PageLoader } from "@/components/ui";
@@ -9,6 +10,7 @@ import { api, type HeroInfo, type Progress } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
 
 export default function AlbumPage() {
+  const t = useT();
   const user = useRequireUser();
   const [heroes, setHeroes] = useState<HeroInfo[] | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -34,8 +36,8 @@ export default function AlbumPage() {
       <AppHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-8 px-4 py-6">
         <div>
-          <h1 className="text-3xl font-black text-blue-950">📚 Albom</h1>
-          <p className="text-slate-600">Qahramonlar va yutuqlar to‘plami. Ba’zi qahramonlar faqat yutuqlar evaziga ochiladi.</p>
+          <h1 className="text-3xl font-black text-blue-950">{t("📚 Albom")}</h1>
+          <p className="text-slate-600">{t("Qahramonlar va yutuqlar to‘plami. Ba’zi qahramonlar faqat yutuqlar evaziga ochiladi.")}</p>
         </div>
         {error && <Alert>{error}</Alert>}
         {!heroes && !error && <PageLoader />}
@@ -43,7 +45,7 @@ export default function AlbumPage() {
         {heroes && (
           <section aria-labelledby="heroes-title">
             <h2 id="heroes-title" className="mb-3 text-xl font-black text-blue-950">
-              Qahramonlar · {unlockedCount}/{heroes.length}
+              {t("Qahramonlar")} · {unlockedCount}/{heroes.length}
             </h2>
             <ul className="grid grid-cols-2 gap-3 p-0 sm:grid-cols-3 md:grid-cols-5">
               {CHARACTERS.map((c, i) => {
@@ -55,9 +57,9 @@ export default function AlbumPage() {
                       <div className={open ? "" : "opacity-40 grayscale"} aria-hidden>
                         <MascotAvatar character={c} size={84} />
                       </div>
-                      <span className="mt-1 font-extrabold text-blue-950">{open ? c.name : "???"}</span>
-                      {user.profile.mascot === c.id && <span className="mt-1 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white">Tanlangan</span>}
-                      {!open && h?.requirement && <span className="mt-1 text-xs font-bold text-amber-700">🔒 {h.requirement}</span>}
+                      <span className="mt-1 font-extrabold text-blue-950">{open ? t(c.name) : "???"}</span>
+                      {user.profile.mascot === c.id && <span className="mt-1 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white">{t("Tanlangan")}</span>}
+                      {!open && h?.requirement && <span className="mt-1 text-xs font-bold text-amber-700">🔒 {t(h.requirement)}</span>}
                     </Card>
                   </motion.li>
                 );
@@ -69,7 +71,7 @@ export default function AlbumPage() {
         {progress && (
           <section aria-labelledby="badges-title">
             <h2 id="badges-title" className="mb-3 text-xl font-black text-blue-950">
-              Yutuqlar · {badges.filter((b) => b.unlocked).length}/{badges.length}
+              {t("Yutuqlar")} · {badges.filter((b) => b.unlocked).length}/{badges.length}
             </h2>
             <ul className="grid gap-3 p-0 sm:grid-cols-2 md:grid-cols-3">
               {badges.map((b) => (
@@ -77,8 +79,8 @@ export default function AlbumPage() {
                   <div className="text-3xl" aria-hidden>
                     {b.unlocked ? "🏅" : "🔒"}
                   </div>
-                  <div className="font-extrabold text-blue-950">{b.title}</div>
-                  <div className="text-sm text-slate-600">{b.description}</div>
+                  <div className="font-extrabold text-blue-950">{t(b.title)}</div>
+                  <div className="text-sm text-slate-600">{t(b.description)}</div>
                 </li>
               ))}
             </ul>

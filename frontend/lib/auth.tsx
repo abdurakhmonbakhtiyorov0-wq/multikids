@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useRouter } from "next/navigation";
 import { api, childStore, parentStore, tokenStore, type Profile, type Settings, type User } from "./api";
 import { ConsentGate } from "@/components/ConsentGate";
+import { clearPwaCaches } from "@/components/PwaRegister";
+import { hasStoredLocale, useI18n } from "@/lib/i18n";
 
 type AuthCtx = {
   user: User | null;
@@ -20,6 +22,13 @@ const Ctx = createContext<AuthCtx | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { setLocale } = useI18n();
+
+  // Boshqa qurilmada tanlangan til (profilda saqlangan) — shu brauzerda til tanlanmagan bo‘lsagina qo‘llanadi
+  useEffect(() => {
+    const serverLocale = user?.child?.locale;
+    if (serverLocale && serverLocale !== "uz" && !hasStoredLocale()) setLocale(serverLocale);
+  }, [user, setLocale]);
 
   useEffect(() => {
     const request = tokenStore.get()
@@ -58,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tokenStore.set(null);
     childStore.set(null);
     parentStore.set(null);
+    clearPwaCaches();
     setUser(null);
   }, []);
 

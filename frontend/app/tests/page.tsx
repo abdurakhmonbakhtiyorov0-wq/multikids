@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -14,37 +15,38 @@ function Stat({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-blue-100">{children}</span>;
 }
 
-function TestCard({ t }: { t: TestInfo }) {
-  const isLevel = t.kind === "level";
-  const href = `/quiz?test=${t.id}`;
-  const cta = t.inProgress ? "Davom etish ▶" : t.attempts ? "Qayta topshirish ▶" : "Boshlash ▶";
+function TestCard({ test }: { test: TestInfo }) {
+  const t = useT();
+  const isLevel = test.kind === "level";
+  const href = `/quiz?test=${test.id}`;
+  const cta = test.inProgress ? t("Davom etish ▶") : test.attempts ? t("Qayta topshirish ▶") : t("Boshlash ▶");
   return (
     <motion.li initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="list-none">
-      <Card className={`flex flex-col gap-3 sm:flex-row sm:items-center ${t.unlocked ? "" : "opacity-70"}`}>
-        <div className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-black ${isLevel ? LEVEL_COLORS[t.order - 1] : t.kind === "exam" ? "bg-violet-100 text-violet-800" : "bg-blue-100 text-blue-800"}`} aria-hidden>
-          {t.unlocked ? (isLevel ? t.order : t.kind === "exam" ? "🎓" : "🎲") : "🔒"}
+      <Card className={`flex flex-col gap-3 sm:flex-row sm:items-center ${test.unlocked ? "" : "opacity-70"}`}>
+        <div className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-black ${isLevel ? LEVEL_COLORS[test.order - 1] : test.kind === "exam" ? "bg-violet-100 text-violet-800" : "bg-blue-100 text-blue-800"}`} aria-hidden>
+          {test.unlocked ? (isLevel ? test.order : test.kind === "exam" ? "🎓" : "🎲") : "🔒"}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-black text-blue-950">{t.title}</h3>
-          <p className="text-sm text-slate-600">{t.note}</p>
+          <h3 className="text-lg font-black text-blue-950">{t(test.title)}</h3>
+          <p className="text-sm text-slate-600">{t(test.note)}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <Stat>📝 {t.total} ta savol</Stat>
-            <Stat>⭐ +{t.pointsPerCorrect} ball / to‘g‘ri</Stat>
-            {t.timeLimitSec && <Stat>⏱ {Math.round(t.timeLimitSec / 60)} daqiqa</Stat>}
-            {t.bestAccuracy !== null && <Stat>🏅 Eng yaxshi: {t.bestAccuracy}%</Stat>}
-            {t.bestMark !== null && <Stat>Baho: {t.bestMark}</Stat>}
-            {t.attempts > 0 && <Stat>🔁 {t.attempts} marta</Stat>}
-            {t.inProgress && <Stat>⏳ {t.inProgress.answered}/{t.inProgress.total} javob berilgan</Stat>}
+            <Stat>{t("📝 {n} ta savol", { n: test.total })}</Stat>
+            <Stat>{t("⭐ +{n} ball / to‘g‘ri", { n: test.pointsPerCorrect })}</Stat>
+            {test.timeLimitSec && <Stat>{t("⏱ {n} daqiqa", { n: Math.round(test.timeLimitSec / 60) })}</Stat>}
+            {test.bestAccuracy !== null && <Stat>{t("🏅 Eng yaxshi: {n}%", { n: test.bestAccuracy })}</Stat>}
+            {test.bestMark !== null && <Stat>{t("Baho: {n}", { n: test.bestMark })}</Stat>}
+            {test.attempts > 0 && <Stat>{t("🔁 {n} marta", { n: test.attempts })}</Stat>}
+            {test.inProgress && <Stat>{t("⏳ {a}/{n} javob berilgan", { a: test.inProgress.answered, n: test.inProgress.total })}</Stat>}
           </div>
-          {!t.unlocked && t.lockedReason && <p className="mt-2 text-sm font-bold text-amber-700">🔒 {t.lockedReason}</p>}
+          {!test.unlocked && test.lockedReason && <p className="mt-2 text-sm font-bold text-amber-700">🔒 {t(test.lockedReason)}</p>}
         </div>
-        {t.unlocked && t.available ? (
-          <Link href={href} className={`${btnClass(t.inProgress ? "primary" : "secondary")} w-full shrink-0 sm:w-auto`}>
+        {test.unlocked && test.available ? (
+          <Link href={href} className={`${btnClass(test.inProgress ? "primary" : "secondary")} w-full shrink-0 sm:w-auto`}>
             {cta}
           </Link>
         ) : (
           <span className={`${btnClass("ghost")} w-full shrink-0 cursor-not-allowed opacity-60 sm:w-auto`} aria-disabled>
-            {t.available ? "Yopiq" : "Tez orada"}
+            {test.available ? t("Yopiq") : t("Tez orada")}
           </span>
         )}
       </Card>
@@ -53,6 +55,7 @@ function TestCard({ t }: { t: TestInfo }) {
 }
 
 export default function TestsPage() {
+  const t = useT();
   const user = useRequireUser();
   const [tests, setTests] = useState<TestInfo[] | null>(null);
   const [mistakes, setMistakes] = useState(0);
@@ -71,8 +74,8 @@ export default function TestsPage() {
 
   if (!user) return <PageLoader />;
   const subj = SUBJECT_BY_ID[user.profile.subject!];
-  const levels = tests?.filter((t) => t.kind === "level") ?? [];
-  const others = tests?.filter((t) => t.kind !== "level") ?? [];
+  const levels = tests?.filter((x) => x.kind === "level") ?? [];
+  const others = tests?.filter((x) => x.kind !== "level") ?? [];
 
   return (
     <>
@@ -80,12 +83,12 @@ export default function TestsPage() {
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-6">
         <div>
           <Link href="/dashboard" className="text-sm font-bold text-blue-700 hover:underline">
-            ← Bosh sahifa
+            {t("← Bosh sahifa")}
           </Link>
           <h1 className="mt-1 text-3xl font-black text-blue-950">
-            {subj.emoji} {subj.title} · {user.profile.grade}-sinf
+            {subj.emoji} {t(subj.title)} · {t("{n}-sinf", { n: user.profile.grade })}
           </h1>
-          <p className="text-slate-600">Bosqichma-bosqich o‘tib boring: har bir keyingi bosqich oldingisini kamida 60% bilan tugatgandan keyin ochiladi.</p>
+          <p className="text-slate-600">{t("Bosqichma-bosqich o‘tib boring: har bir keyingi bosqich oldingisini kamida 60% bilan tugatgandan keyin ochiladi.")}</p>
         </div>
 
         {error && <Alert>{error}</Alert>}
@@ -95,17 +98,23 @@ export default function TestsPage() {
           <>
             <section aria-labelledby="levels-title">
               <h2 id="levels-title" className="mb-3 text-xl font-black text-blue-950">
-                5 bosqichli testlar
+                {t("5 bosqichli testlar")}
               </h2>
-              <ul className="space-y-3 p-0">{levels.map((t) => <TestCard key={t.id} t={t} />)}</ul>
+              <ul className="space-y-3 p-0">
+                {levels.map((x) => (
+                  <TestCard key={x.id} test={x} />
+                ))}
+              </ul>
             </section>
 
             <section aria-labelledby="other-title">
               <h2 id="other-title" className="mb-3 text-xl font-black text-blue-950">
-                Boshqa testlar
+                {t("Boshqa testlar")}
               </h2>
               <ul className="space-y-3 p-0">
-                {others.map((t) => <TestCard key={t.id} t={t} />)}
+                {others.map((x) => (
+                  <TestCard key={x.id} test={x} />
+                ))}
                 {mistakes > 0 && (
                   <li className="list-none">
                     <Card className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -113,11 +122,11 @@ export default function TestsPage() {
                         🛠
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-black text-blue-950">Xatolar ustida ishlash</h3>
-                        <p className="text-sm text-slate-600">Oldin adashgan {mistakes} ta savolni qayta yeching.</p>
+                        <h3 className="text-lg font-black text-blue-950">{t("Xatolar ustida ishlash")}</h3>
+                        <p className="text-sm text-slate-600">{t("Oldin adashgan {n} ta savolni qayta yeching.", { n: mistakes })}</p>
                       </div>
                       <Link href="/quiz?mode=mistakes" className={`${btnClass("secondary")} w-full shrink-0 sm:w-auto`}>
-                        Boshlash ▶
+                        {t("Boshlash ▶")}
                       </Link>
                     </Card>
                   </li>

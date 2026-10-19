@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AppHeader, Alert, Button, Card, PageLoader } from "@/components/ui";
@@ -10,6 +11,7 @@ import { useAuth, useRequireUser } from "@/lib/auth";
 import { confetti, playSound } from "@/lib/effects";
 
 export default function ShopPage() {
+  const t = useT();
   const user = useRequireUser();
   const { refresh } = useAuth();
   const [shop, setShop] = useState<ShopData | null>(null);
@@ -21,9 +23,9 @@ export default function ShopPage() {
     try {
       setShop(await api<ShopData>("/api/shop"));
     } catch (e) {
-      setMessage({ tone: "error", text: e instanceof Error ? e.message : "Do‘konni yuklab bo‘lmadi" });
+      setMessage({ tone: "error", text: e instanceof Error ? e.message : t("Do‘konni yuklab bo‘lmadi") });
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (user) queueMicrotask(load);
@@ -37,13 +39,13 @@ export default function ShopPage() {
         const r = await api<{ newAchievements: NewAchievement[] }>(`/api/shop/${id}/buy`, { method: "POST" });
         playSound("coin", sound);
         confetti(0.7);
-        setMessage({ tone: "info", text: `🎉 ${REWARDS[id].title} sotib olindi!${r.newAchievements.length ? ` Yangi yutuq: ${r.newAchievements.map((a) => a.title).join(", ")}` : ""}` });
+        setMessage({ tone: "info", text: `${t("🎉 {name} sotib olindi!", { name: t(REWARDS[id].title) })}${r.newAchievements.length ? ` ${t("Yangi yutuq:")} ${r.newAchievements.map((a) => t(a.title)).join(", ")}` : ""}` });
       } else {
         await api(`/api/shop/${id}/equip`, { method: "POST", body: { equipped: kind === "wear" } });
       }
       await Promise.all([load(), refresh()]);
     } catch (e) {
-      setMessage({ tone: "error", text: e instanceof Error ? e.message : "Amalni bajarib bo‘lmadi" });
+      setMessage({ tone: "error", text: e instanceof Error ? e.message : t("Amalni bajarib bo‘lmadi") });
     } finally {
       setBusy(null);
     }
@@ -59,11 +61,11 @@ export default function ShopPage() {
         <div className="order-2 space-y-4 lg:order-1">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-black text-blue-950">🛍 Do‘kon</h1>
-              <p className="text-slate-600">Testlarda yutgan ballaringga qahramoningni bezat!</p>
+              <h1 className="text-3xl font-black text-blue-950">{t("🛍 Do‘kon")}</h1>
+              <p className="text-slate-600">{t("Testlarda yutgan ballaringga qahramoningni bezat!")}</p>
             </div>
             <div className="rounded-2xl bg-amber-100 px-5 py-3 text-xl font-black text-amber-800" aria-live="polite">
-              ⭐ {shop ? shop.balance : "–"} ball
+              {t("⭐ {n} ball", { n: shop ? shop.balance : "–" })}
             </div>
           </div>
           {message && <Alert tone={message.tone}>{message.text}</Alert>}
@@ -78,19 +80,19 @@ export default function ShopPage() {
                         {REWARDS[i.id].emoji}
                       </span>
                       <div className="min-w-0">
-                        <h2 className="text-lg font-black text-blue-950">{i.name}</h2>
-                        <p className="text-sm font-bold text-slate-500">{i.owned ? "✓ Sizda bor" : `⭐ ${i.price} ball`}</p>
+                        <h2 className="text-lg font-black text-blue-950">{t(i.name)}</h2>
+                        <p className="text-sm font-bold text-slate-500">{i.owned ? t("✓ Sizda bor") : t("⭐ {n} ball", { n: i.price })}</p>
                       </div>
                     </div>
-                    {i.levelLocked && !i.owned && <p className="text-sm font-bold text-amber-700">🔒 {i.minLevel}-darajadan ochiladi</p>}
+                    {i.levelLocked && !i.owned && <p className="text-sm font-bold text-amber-700">{t("🔒 {n}-darajadan ochiladi", { n: i.minLevel })}</p>}
                     <div className="mt-auto">
                       {i.owned ? (
                         <Button className="w-full" variant={i.equipped ? "secondary" : "primary"} loading={busy === i.id} onClick={() => act(i.id, i.equipped ? "takeoff" : "wear")}>
-                          {i.equipped ? "Yechish" : "Kiyish"}
+                          {i.equipped ? t("Yechish") : t("Kiyish")}
                         </Button>
                       ) : (
                         <Button className="w-full" loading={busy === i.id} disabled={i.levelLocked || !i.affordable} onClick={() => act(i.id, "buy")}>
-                          {i.levelLocked ? "Yopiq" : i.affordable ? `Sotib olish · ${i.price}` : `Yana ${i.price - (shop?.balance ?? 0)} ball kerak`}
+                          {i.levelLocked ? t("Yopiq") : i.affordable ? t("Sotib olish · {n}", { n: i.price }) : t("Yana {n} ball kerak", { n: i.price - (shop?.balance ?? 0) })}
                         </Button>
                       )}
                     </div>
@@ -103,7 +105,7 @@ export default function ShopPage() {
         <aside className="order-1 lg:order-2">
           <div className="sticky top-20 rounded-4xl bg-linear-to-b from-blue-100 via-white to-white p-3 ring-1 ring-blue-100">
             <MascotView id={user.profile.mascot!} mood={equipped.length ? "wearing_rewards" : "idle"} equipped={equipped} reaction={{ kind: "none", nonce: 0 }} className="h-72 sm:h-96" />
-            <p className="pb-2 text-center text-sm font-bold text-slate-600">Hozir kiyilgan: {equipped.length ? equipped.map((e) => REWARDS[e].emoji).join(" ") : "hech narsa"}</p>
+            <p className="pb-2 text-center text-sm font-bold text-slate-600">{t("Hozir kiyilgan:")} {equipped.length ? equipped.map((e) => REWARDS[e].emoji).join(" ") : t("hech narsa")}</p>
           </div>
         </aside>
       </main>

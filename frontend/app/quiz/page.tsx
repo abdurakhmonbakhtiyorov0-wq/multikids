@@ -1,5 +1,6 @@
 "use client";
 
+import { useContentT, useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,21 +10,26 @@ import type { Mood, Reaction } from "@/components/three/Mascot";
 import { REWARDS, SUBJECT_BY_ID } from "@/lib/data";
 import { confetti, playSound } from "@/lib/effects";
 import { speechLang, useSpeech } from "@/lib/speech";
+import { useOnline } from "@/lib/online";
 import { api, ApiError, type NewAchievement, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState, type TestId } from "@/lib/api";
 import { useAuth, useRequireUser } from "@/lib/auth";
 
 const EMPTY: QuizState = { answered: 0, correct: 0, incorrect: 0, score: 0, streak: 0, equipped: [], earned: [] };
 const LETTERS = ["A", "B", "C", "D"];
 
-function message(r: QuizResult) {
-  if (r.accuracy >= 85) return "Ajoyib! Sen juda yaxshi ishlading!";
-  if (r.accuracy >= 60) return "Barakalla! Biliming kundan-kunga oshmoqda!";
-  return "Yaxshi harakat! Yana bir bor urinib ko‘ramizmi?";
+function message(r: QuizResult, t: (s: string) => string) {
+  if (r.accuracy >= 85) return t("Ajoyib! Sen juda yaxshi ishlading!");
+  if (r.accuracy >= 60) return t("Barakalla! Biliming kundan-kunga oshmoqda!");
+  return t("Yaxshi harakat! Yana bir bor urinib ko‘ramizmi?");
 }
 
 export default function QuizPage() {
+  const t = useT();
   const user = useRequireUser();
   const { refresh } = useAuth();
+  const ct = useContentT(user?.profile.subject);
+  const online = useOnline();
+  const [pending, setPending] = useState<number | null>(null);
   const speech = useSpeech(speechLang(user?.profile.subject ?? "mathematics"));
   const { available: canSpeak, speak, stop } = speech;
   const userRef = useRef(user);
@@ -86,11 +92,11 @@ export default function QuizPage() {
       setMood(r.result.accuracy >= 60 ? "celebrating" : r.result.equipped.length ? "wearing_rewards" : "idle");
       setReaction((p) => ({ kind: "celebrate", nonce: p.nonce + 1 }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Natijani saqlab bo‘lmadi");
+      setError(e instanceof Error ? e.message : t("Natijani saqlab bo‘lmadi"));
     } finally {
       setSubmitting(false);
     }
-  }, [refresh]);
+  }, [refresh, t]);
 
   const start = useCallback(async (mode: QuizMode = "quiz", testId?: TestId) => {
     if (!user) return;
@@ -117,9 +123,9 @@ export default function QuizPage() {
       if (!s.question) await finish(s.sessionId);
       setMoodFor("thinking", 1400);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Testni boshlab bo‘lmadi");
+      setError(e instanceof Error ? e.message : t("Testni boshlab bo‘lmadi"));
     }
-  }, [user, setMoodFor, finish]);
+  }, [user, setMoodFor, finish, t]);
 
   const initialized = useRef(false);
   useEffect(() => {
@@ -161,6 +167,17 @@ export default function QuizPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId, autoRead, canSpeak]);
 
+  const chooseRef = useRef<(a: number) => Promise<void>>(async () => {});
+  useEffect(() => {
+    if (!online || pending === null) return;
+    const answer = pending;
+    queueMicrotask(() => {
+      setPending(null);
+      setError("");
+      void chooseRef.current(answer);
+    });
+  }, [online, pending]);
+
   async function choose(answer: number) {
     if (!session || feedback || inFlight.current) return;
     inFlight.current = true;
@@ -176,13 +193,21 @@ export default function QuizPage() {
       if (r.correct) setMoodFor(ev.type === "celebrate" || r.state.streak >= 5 ? "celebrating" : "happy", 1900);
       else setMoodFor("sad", 2000);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 410 && session.deadlineAt) await finish(session.sessionId);
-      else setError(e instanceof Error ? e.message : "Javobni yuborib bo‘lmadi");
+      if (e instanceof ApiError && e.status === 0) {
+        // Tarmoq yo‘q: javob serverga yetmadi, "to‘g‘ri" deb ko‘rsatmaymiz. Aloqa tiklangach o‘zi qayta yuboriladi (server takroriy javobni ikki marta hisoblamaydi).
+        setPending(answer);
+        setError(t("Internet yo‘q — javobingiz hali yuborilmadi. Aloqa tiklangach avtomatik yuboriladi."));
+      } else if (e instanceof ApiError && e.status === 410 && session.deadlineAt) await finish(session.sessionId);
+      else setError(e instanceof Error ? e.message : t("Javobni yuborib bo‘lmadi"));
     } finally {
       inFlight.current = false;
       setSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    chooseRef.current = choose;
+  });
 
   async function next() {
     if (!session) return;
@@ -203,10 +228,10 @@ export default function QuizPage() {
   const mascotPanel = (
     <div className="rounded-4xl bg-linear-to-b from-blue-100 via-white to-white p-2 ring-1 ring-blue-100">
       <MascotView id={user.profile.mascot!} mood={mood} equipped={result ? result.equipped : state.equipped} reaction={reaction} className="h-56 sm:h-72 lg:h-[440px]" />
-      <div className="flex min-h-10 flex-wrap justify-center gap-1.5 p-2" aria-label="Kiyilgan mukofotlar">
+      <div className="flex min-h-10 flex-wrap justify-center gap-1.5 p-2" aria-label={t("Kiyilgan mukofotlar")}>
         {(result ? result.equipped : state.equipped).map((r) => (
           <motion.span key={r} initial={{ scale: 0 }} animate={{ scale: 1 }} className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-blue-100">
-            {REWARDS[r].emoji} {REWARDS[r].title}
+            {REWARDS[r].emoji} {t(REWARDS[r].title)}
           </motion.span>
         ))}
       </div>
@@ -223,7 +248,7 @@ export default function QuizPage() {
             <Alert>
               {error}{" "}
               <button className="underline" onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>
-                Qayta urinish
+                {t("Qayta urinish")}
               </button>
             </Alert>
           )}
@@ -233,15 +258,15 @@ export default function QuizPage() {
             <>
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-slate-600">
                 <span>
-                  {subj.emoji} {subj.title} · {user.profile.grade}-sinf · {session.testTitle}
+                  {subj.emoji} {t(subj.title)} · {t("{n}-sinf", { n: user.profile.grade })} · {t(session.testTitle)}
                 </span>
                 <span className="flex gap-2">
                   {remaining !== null && (
-                    <span className={`rounded-full px-3 py-1 ring-1 ${remaining <= 60 ? "bg-red-50 text-red-700 ring-red-200" : "bg-white ring-blue-100"}`} role="timer" aria-label="Qolgan vaqt">
+                    <span className={`rounded-full px-3 py-1 ring-1 ${remaining <= 60 ? "bg-red-50 text-red-700 ring-red-200" : "bg-white ring-blue-100"}`} role="timer" aria-label={t("Qolgan vaqt")}>
                       ⏱ {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
                     </span>
                   )}
-                  <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100">⭐ {state.score} ball</span>
+                  <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100">{t("⭐ {n} ball", { n: state.score })}</span>
                   <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100">✅ {state.correct}</span>
                   {state.streak >= 2 && <span className="rounded-full bg-blue-600 px-3 py-1 text-white">🔥 {state.streak}</span>}
                 </span>
@@ -249,9 +274,9 @@ export default function QuizPage() {
               <div>
                 <div className="mb-1 flex justify-between text-sm font-extrabold text-blue-800">
                   <span>
-                    Savol {index + 1} / {total}
+                    {t("Savol {i} / {n}", { i: index + 1, n: total })}
                   </span>
-                  <span>{total - state.answered} ta savol qoldi</span>
+                  <span>{t("{n} ta savol qoldi", { n: total - state.answered })}</span>
                 </div>
                 <div className="h-3 overflow-hidden rounded-full bg-blue-100" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={state.answered}>
                   <motion.div className="h-full rounded-full bg-blue-600" animate={{ width: `${(state.answered / total) * 100}%` }} />
@@ -266,21 +291,22 @@ export default function QuizPage() {
                         <button
                           type="button"
                           onClick={() => (speech.speaking ? stop() : readAloud(q))}
-                          aria-label={speech.speaking ? "O‘qishni to‘xtatish" : "Savolni ovoz chiqarib o‘qish"}
+                          aria-label={speech.speaking ? t("O‘qishni to‘xtatish") : t("Savolni ovoz chiqarib o‘qish")}
                           aria-pressed={speech.speaking}
                           className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-blue-100 text-2xl text-blue-700 ring-2 ring-blue-200 transition hover:bg-blue-200 active:scale-95"
                         >
                           {speech.speaking ? "⏹" : "🔊"}
                         </button>
                       )}
-                      <h1 className="whitespace-pre-line text-xl font-extrabold leading-relaxed text-blue-950 sm:text-2xl">{q.prompt}</h1>
+                      <h1 className="whitespace-pre-line text-xl font-extrabold leading-relaxed text-blue-950 sm:text-2xl">{ct(q.prompt)}</h1>
                     </div>
                     {q.image && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={q.image.src} alt={q.image.alt} loading="lazy" decoding="async" className="mx-auto mt-4 max-h-56 rounded-2xl bg-blue-50 p-2" />
                     )}
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      {q.options.map((o, i) => {
+                      {q.options.map((o0, i) => {
+                        const o = ct(o0);
                         const isCorrect = feedback && i === feedback.correctIndex;
                         const isWrongPick = feedback && i === feedback.chosen && !feedback.correct;
                         return (
@@ -312,18 +338,18 @@ export default function QuizPage() {
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
                           <div className={`mt-5 rounded-2xl p-4 ${feedback.correct ? "bg-emerald-50" : "bg-amber-50"}`} role="status" aria-live="polite">
                             <p className={`text-lg font-black ${feedback.correct ? "text-emerald-700" : "text-amber-700"}`}>
-                              {feedback.correct ? `✓ To‘g‘ri javob! +${session.pointsPerCorrect} ball` : "✗ Yana bir bor urinib ko‘r! Xatolardan o‘rganamiz."}
+                              {feedback.correct ? t("✓ To‘g‘ri javob! +{n} ball", { n: session.pointsPerCorrect }) : t("✗ Yana bir bor urinib ko‘r! Xatolardan o‘rganamiz.")}
                             </p>
-                            <p className="mt-1 text-slate-700">{feedback.explanation}</p>
-                            {feedback.event.type === "equip" && <p className="mt-1 font-bold text-blue-700">🎁 Yangi mukofot: {REWARDS[feedback.event.item].emoji} {REWARDS[feedback.event.item].title}</p>}
+                            <p className="mt-1 text-slate-700">{ct(feedback.explanation)}</p>
+                            {feedback.event.type === "equip" && <p className="mt-1 font-bold text-blue-700">{t("🎁 Yangi mukofot:")} {REWARDS[feedback.event.item].emoji} {t(REWARDS[feedback.event.item].title)}</p>}
                             {feedback.event.type === "remove" && feedback.event.item && (
                               <p className="mt-1 font-bold text-slate-600">
-                                {REWARDS[feedback.event.item].emoji} {REWARDS[feedback.event.item].title} vaqtincha yechildi — keyingi to‘g‘ri javob bilan qaytarasan!
+                                {REWARDS[feedback.event.item].emoji} {t("{name} vaqtincha yechildi — keyingi to‘g‘ri javob bilan qaytarasan!", { name: t(REWARDS[feedback.event.item].title) })}
                               </p>
                             )}
                           </div>
                           <Button className="mt-4 w-full sm:w-auto" onClick={next} loading={submitting} autoFocus>
-                            {feedback.next ? "Keyingi savol →" : "Natijalarni ko‘rish"}
+                            {feedback.next ? t("Keyingi savol →") : t("Natijalarni ko‘rish")}
                           </Button>
                         </motion.div>
                       )}
@@ -339,9 +365,9 @@ export default function QuizPage() {
               <Card className="text-center">
                 <p className="text-5xl">{result.accuracy >= 85 ? "🏆" : result.accuracy >= 60 ? "🌟" : "💪"}</p>
                 {result.testTitle && <p className="mt-2 text-sm font-extrabold uppercase tracking-wide text-blue-600">{result.testTitle}</p>}
-                <h1 className="mt-1 text-3xl font-black text-blue-950">{message(result)}</h1>
+                <h1 className="mt-1 text-3xl font-black text-blue-950">{message(result, t)}</h1>
                 {result.mark ? (
-                  <p className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-violet-100 px-5 py-2 text-2xl font-black text-violet-800">Baho: {result.mark}</p>
+                  <p className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-violet-100 px-5 py-2 text-2xl font-black text-violet-800">{t("Baho:")} {result.mark}</p>
                 ) : null}
                 <p className="mt-4 text-6xl font-black text-blue-600">
                   {result.score}
@@ -350,54 +376,54 @@ export default function QuizPage() {
                 <div className="mt-5 grid grid-cols-3 gap-3">
                   <div className="rounded-2xl bg-emerald-50 p-3">
                     <div className="text-2xl font-black text-emerald-700">{result.correct}/{result.total}</div>
-                    <div className="text-xs font-bold text-slate-500">To‘g‘ri</div>
+                    <div className="text-xs font-bold text-slate-500">{t("To‘g‘ri")}</div>
                   </div>
                   <div className="rounded-2xl bg-amber-50 p-3">
                     <div className="text-2xl font-black text-amber-700">{result.incorrect}</div>
-                    <div className="text-xs font-bold text-slate-500">Noto‘g‘ri</div>
+                    <div className="text-xs font-bold text-slate-500">{t("Noto‘g‘ri")}</div>
                   </div>
                   <div className="rounded-2xl bg-blue-50 p-3">
                     <div className="text-2xl font-black text-blue-700">{result.accuracy}%</div>
-                    <div className="text-xs font-bold text-slate-500">Aniqlik</div>
+                    <div className="text-xs font-bold text-slate-500">{t("Aniqlik")}</div>
                   </div>
                 </div>
                 {bonus && (bonus.leveledUp || bonus.achievements.length > 0 || (bonus.streak ?? 0) > 1) && (
                   <div className="mt-4 space-y-1 rounded-2xl bg-amber-50 p-3 text-left font-bold text-amber-900" role="status">
-                    {bonus.leveledUp && <p>🆙 Yangi daraja: {bonus.level}-daraja!</p>}
+                    {bonus.leveledUp && <p>{t("🆙 Yangi daraja: {n}-daraja!", { n: bonus.level ?? "" })}</p>}
                     {bonus.achievements.map((a) => (
                       <p key={a.id}>
-                        🏅 Yangi yutuq: {a.title}
-                        {a.rewardPoints ? ` (+${a.rewardPoints} ball)` : ""}
+                        {t("🏅 Yangi yutuq:")} {t(a.title)}
+                        {a.rewardPoints ? ` (+${a.rewardPoints} ${t("ball")})` : ""}
                       </p>
                     ))}
-                    {(bonus.streak ?? 0) > 1 && <p>🔥 {bonus.streak} kunlik seriya!</p>}
+                    {(bonus.streak ?? 0) > 1 && <p>{t("🔥 {n} kunlik seriya!", { n: bonus.streak ?? 0 })}</p>}
                   </div>
                 )}
                 {result.earned.length > 0 && (
                   <p className="mt-4 font-bold text-slate-600">
-                    Yutilgan mukofotlar: {result.earned.map((r) => `${REWARDS[r].emoji} ${REWARDS[r].title}`).join(", ")}
+                    {t("Yutilgan mukofotlar:")} {result.earned.map((r) => `${REWARDS[r].emoji} ${t(REWARDS[r].title)}`).join(", ")}
                   </p>
                 )}
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
-                  <Button onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>Qayta boshlash</Button>
+                  <Button onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>{t("Qayta boshlash")}</Button>
                   {result.incorrect > 0 && result.mode !== "mistakes" && (
                     <Button variant="secondary" onClick={() => start("mistakes")}>
-                      Xatolar ustida ishlash
+                      {t("Xatolar ustida ishlash")}
                     </Button>
                   )}
                   {result.incorrect > 0 && (
                     <Button variant="secondary" onClick={() => setReview(true)}>
-                      Xatolarni ko‘rish
+                      {t("Xatolarni ko‘rish")}
                     </Button>
                   )}
                   {nextLevel && (
-                    <Button onClick={() => start("quiz", nextLevel)}>Keyingi bosqich ▶</Button>
+                    <Button onClick={() => start("quiz", nextLevel)}>{t("Keyingi bosqich ▶")}</Button>
                   )}
                   <Link href="/tests" className={btnClass("secondary")}>
-                    Barcha testlar
+                    {t("Barcha testlar")}
                   </Link>
                   <Link href="/dashboard" className={btnClass("ghost")}>
-                    Bosh sahifa
+                    {t("Bosh sahifa")}
                   </Link>
                 </div>
               </Card>
@@ -407,25 +433,25 @@ export default function QuizPage() {
           {result && review && (
             <Card>
               <div className="mb-4 flex items-center justify-between">
-                <h1 className="text-2xl font-black text-blue-950">Xatolar ustida ishlaymiz</h1>
+                <h1 className="text-2xl font-black text-blue-950">{t("Xatolar ustida ishlaymiz")}</h1>
                 <Button variant="ghost" onClick={() => setReview(false)}>
-                  ← Natijalar
+                  {t("← Natijalar")}
                 </Button>
               </div>
               <ol className="space-y-3">
                 {result.answers!.filter((a) => a.chosen !== a.correctIndex).map((a) => (
                   <li key={a.questionId} className="rounded-2xl bg-blue-50/60 p-4 ring-1 ring-blue-100">
-                    <p className="whitespace-pre-line font-extrabold text-blue-950">{a.prompt}</p>
-                    <p className="mt-2 text-red-700">✗ Sening javobing: {a.options[a.chosen]}</p>
-                    <p className="text-emerald-700">✓ To‘g‘ri javob: {a.options[a.correctIndex]}</p>
-                    <p className="mt-1 text-sm text-slate-600">💡 {a.explanation}</p>
+                    <p className="whitespace-pre-line font-extrabold text-blue-950">{ct(a.prompt)}</p>
+                    <p className="mt-2 text-red-700">{t("✗ Sening javobing:")} {ct(a.options[a.chosen])}</p>
+                    <p className="text-emerald-700">{t("✓ To‘g‘ri javob:")} {ct(a.options[a.correctIndex])}</p>
+                    <p className="mt-1 text-sm text-slate-600">💡 {ct(a.explanation)}</p>
                   </li>
                 ))}
               </ol>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>Qayta boshlash</Button>
+                <Button onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>{t("Qayta boshlash")}</Button>
                 <Link href="/dashboard" className={btnClass("secondary")}>
-                  Bosh sahifaga qaytish
+                  {t("Bosh sahifaga qaytish")}
                 </Link>
               </div>
             </Card>

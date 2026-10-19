@@ -1,4 +1,5 @@
 import type { Grade, MascotId, RewardId, Subject } from "./data";
+import { tr } from "./i18n";
 
 // Ishlab chiqarishda NEXT_PUBLIC_API_URL majburiy (Vercel loyihasi sozlamalarida). Faqat lokal ishlab chiqishda localhost:4000 ishlatiladi.
 export const API_URL =
@@ -172,7 +173,7 @@ export const parentStore = {
 };
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-  if (!API_URL) throw new ApiError("Backend manzili sozlanmagan (NEXT_PUBLIC_API_URL).", 0);
+  if (!API_URL) throw new ApiError(tr("Backend manzili sozlanmagan (NEXT_PUBLIC_API_URL)."), 0);
   const token = tokenStore.get();
   let res: Response;
   try {
@@ -187,9 +188,9 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       body: init.body ? JSON.stringify(init.body) : undefined,
     });
   } catch {
-    throw new ApiError("Server bilan bog‘lanib bo‘lmadi. Backend ishga tushirilganini tekshiring.", 0);
+    throw new ApiError(tr("Server bilan bog‘lanib bo‘lmadi. Backend ishga tushirilganini tekshiring."), 0);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || "Kutilmagan xatolik yuz berdi", res.status);
+  if (!res.ok) throw new ApiError(tr(data.error || "Kutilmagan xatolik yuz berdi"), res.status);
   return data as T;
 }
