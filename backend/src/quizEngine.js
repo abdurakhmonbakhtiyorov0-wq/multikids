@@ -82,6 +82,9 @@ export function adapt(state, correct) {
 /** Bir to‘g‘ri javob uchun ball: test bosqichiga qarab (tests.js). */
 export const pointsPerCorrect = (mode, testId) => pointsFor(mode, testId);
 
+const LEVEL_TITLES = ["Yangi boshlovchi", "Qiziquvchi", "Izlanuvchi", "Bilimdon", "Mohir", "Ustoz", "Dono"];
+export const levelTitle = (level) => LEVEL_TITLES[Math.min(level, LEVEL_TITLES.length) - 1];
+
 export function levelForXp(xp) {
   return 1 + Math.floor(Math.sqrt(xp / 50));
 }

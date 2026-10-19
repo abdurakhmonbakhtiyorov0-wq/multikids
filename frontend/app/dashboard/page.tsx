@@ -24,7 +24,10 @@ export default function Dashboard() {
   if (!user) return <PageLoader />;
   const { mascot, grade, subject } = user.profile as Required<typeof user.profile>;
   const subj = SUBJECT_BY_ID[subject!];
-  const lastEquipped = progress?.recent[0]?.equipped ?? [];
+  const worn = user.child?.equipped ?? [];
+  const child = user.child;
+  const xpSpan = child ? child.levelCeilXp - child.levelFloorXp : 1;
+  const xpPct = child ? Math.min(100, Math.round(((child.xp - child.levelFloorXp) / xpSpan) * 100)) : 0;
   const subjectStats = progress?.bySubject[subject!];
 
   return (
@@ -37,6 +40,44 @@ export default function Dashboard() {
             <p className="mt-1 text-lg text-slate-600">Bugun nimalarni o‘rganamiz?</p>
           </motion.div>
           {error && <Alert>{error}</Alert>}
+
+          {child && (
+            <Card className="!p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-extrabold uppercase tracking-wide text-blue-600">{child.level}-daraja</p>
+                  <p className="text-xl font-black text-blue-950">{child.levelTitle}</p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-sm font-black">
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">⭐ {child.balance} ball</span>
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-orange-800" title={`Eng uzun seriya: ${child.bestStreak} kun`}>
+                    🔥 {child.streak} kunlik seriya
+                  </span>
+                  {progress?.dailyGoal && (
+                    <span className={`rounded-full px-3 py-1 ${progress.dailyGoal.met ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
+                      🎯 Bugun: {Math.min(progress.dailyGoal.done, progress.dailyGoal.goal)}/{progress.dailyGoal.goal} test
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="h-3 flex-1 overflow-hidden rounded-full bg-blue-100" role="progressbar" aria-label="Keyingi darajagacha" aria-valuemin={0} aria-valuemax={100} aria-valuenow={xpPct}>
+                  <motion.div className="h-full rounded-full bg-blue-600" initial={{ width: 0 }} animate={{ width: `${xpPct}%` }} />
+                </div>
+                <span className="text-xs font-bold text-slate-500">
+                  {child.xp} / {child.levelCeilXp} XP
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href="/tasks" className={btnClass("secondary")}>
+                  ⚡ Kun savoli
+                </Link>
+                <Link href="/shop" className={btnClass("secondary")}>
+                  🛍 Do‘kon
+                </Link>
+              </div>
+            </Card>
+          )}
 
           <Card className="bg-linear-to-br from-blue-600 to-blue-700 text-white ring-0">
             <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
@@ -125,7 +166,7 @@ export default function Dashboard() {
         <aside className="order-1 lg:order-2">
           <div className="sticky top-20 rounded-4xl bg-linear-to-b from-blue-100 via-white to-white p-3 ring-1 ring-blue-100">
             <p className="px-3 pt-2 text-sm font-extrabold uppercase tracking-wide text-blue-600">Mening qahramonim</p>
-            <MascotView id={mascot!} mood={lastEquipped.length ? "wearing_rewards" : "idle"} equipped={lastEquipped} reaction={{ kind: "none", nonce: 0 }} className="h-72 sm:h-96" />
+            <MascotView id={mascot!} mood={worn.length ? "wearing_rewards" : "idle"} equipped={worn} reaction={{ kind: "none", nonce: 0 }} className="h-72 sm:h-96" />
             <p className="text-center text-xl font-black text-blue-900">{CHARACTER_BY_ID[mascot!].name}</p>
             <div className="mt-2 flex flex-wrap justify-center gap-2 pb-2">
               {(progress?.rewards ?? []).length === 0 ? (

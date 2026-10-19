@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, tokenStore, type Profile, type User } from "./api";
+import { api, tokenStore, type Profile, type Settings, type User } from "./api";
 
 type AuthCtx = {
   user: User | null;
@@ -10,7 +10,8 @@ type AuthCtx = {
   login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<User>;
   logout: () => void;
-  updateProfile: (patch: Partial<Profile> & { name?: string }) => Promise<User>;
+  updateProfile: (patch: Partial<Profile> & Settings) => Promise<User>;
+  refresh: () => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -48,13 +49,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const updateProfile = useCallback(async (patch: Partial<Profile> & { name?: string }) => {
+  const updateProfile = useCallback(async (patch: Partial<Profile> & Settings) => {
     const r = await api<{ user: User }>("/api/me", { method: "PATCH", body: patch });
     setUser(r.user);
     return r.user;
   }, []);
 
-  return <Ctx.Provider value={{ user, loading, login, register, logout, updateProfile }}>{children}</Ctx.Provider>;
+  /** Ball, daraja va kiyim o‘zgargandan keyin foydalanuvchi ma’lumotini serverdan yangilaydi. */
+  const refresh = useCallback(async () => {
+    try {
+      const r = await api<{ user: User }>("/api/me");
+      setUser(r.user);
+    } catch {}
+  }, []);
+
+  return <Ctx.Provider value={{ user, loading, login, register, logout, updateProfile, refresh }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

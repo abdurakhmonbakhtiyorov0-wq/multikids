@@ -15,6 +15,8 @@ export type ChildInfo = {
   balance: number;
   xp: number;
   level: number;
+  levelTitle: string;
+  equipped: RewardId[];
   levelFloorXp: number;
   levelCeilXp: number;
   streak: number;
@@ -71,6 +73,22 @@ export type QuizResult = {
   createdAt: string;
   answers?: ReviewAnswer[];
 };
+export type ShopItem = { id: RewardId; category: string; name: string; price: number; minLevel: number; owned: boolean; equipped: boolean; levelLocked: boolean; affordable: boolean };
+export type ShopData = { balance: number; level: number; items: ShopItem[] };
+export type NewAchievement = { id: string; title: string; description: string; rewardPoints?: number };
+export type DailyData = {
+  day: string;
+  points: number;
+  question: QuizQuestion;
+  answered: boolean;
+  result: { correct: boolean; chosen: number; correctIndex: number; explanation: string; earned: number } | null;
+  newAchievements?: NewAchievement[];
+};
+export type WeeklyTask = { id: string; title: string; target: number; progress: number; reward: number; complete: boolean; claimed: boolean };
+export type WeeklyData = { weekStart: string; tasks: WeeklyTask[]; allClaimed: boolean; earned?: number; newAchievements?: NewAchievement[] };
+export type HeroInfo = { id: MascotId; unlocked: boolean; requirement: string | null };
+export type Settings = { name?: string; locale?: "uz" | "ru"; soundEnabled?: boolean; voiceAutoplay?: boolean; timezone?: string };
+
 export type Progress = {
   totalPoints: number;
   quizzes: number;
@@ -78,6 +96,12 @@ export type Progress = {
   bySubject: Record<Subject, { attempts: number; bestScore: number; avgAccuracy: number; mistakesToReview?: number }>;
   rewards: RewardId[];
   achievements: { id: string; title: string; description: string; unlocked: boolean }[];
+  balance?: number;
+  xp?: number;
+  level?: number;
+  streak?: number;
+  bestStreak?: number;
+  dailyGoal?: { goal: number; done: number; met: boolean };
   recent: QuizResult[];
 };
 

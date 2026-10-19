@@ -16,6 +16,7 @@ import {
   nextStreak,
   dayInZone,
 } from "./quizEngine.js";
+import { awardAchievement } from "./rewards.js";
 import { TESTS, TEST_BY_ID, UNLOCK_ACCURACY, levelTargetDifficulty, modeForTest, markFor } from "./tests.js";
 
 const SESSION_TTL = "24 hours";
@@ -25,7 +26,7 @@ const SUBJECT_COUNT = 6;
 // ---------- Yordamchilar ----------
 
 /** Savol o‘quvchiga ko‘rsatiladigan shaklda (to‘g‘ri javobsiz). Variantlar tartibi sessiyaga bog‘liq. */
-function publicQuestion(q, sessionId, locale) {
+export function publicQuestion(q, sessionId, locale) {
   const { options } = arrangeOptions(sessionId, q.id, loc(q.options, locale), q.correct_index);
   return {
     id: q.id,
@@ -37,7 +38,7 @@ function publicQuestion(q, sessionId, locale) {
   };
 }
 
-async function getQuestion(c, id) {
+export async function getQuestion(c, id) {
   const { rows } = await c.query("SELECT * FROM questions WHERE id = $1", [id]);
   return rows[0];
 }
@@ -397,10 +398,15 @@ export async function finishQuiz(child, sessionId) {
       [child.id, points + bonus, newXp, levelForXp(newXp), streak.current, streak.best, today],
     );
 
+    // Daraja va imtihon yutuqlari (ball yangilangandan keyin beriladi).
+    const extra = [];
+    if (levelForXp(newXp) >= 5) extra.push(await awardAchievement(c, child.id, "level5", child.locale));
+    if (inserted.rows[0].mark >= 4) extra.push(await awardAchievement(c, child.id, "exam4", child.locale));
+
     const titles = (await c.query("SELECT id, title, description FROM achievements WHERE id = ANY($1::text[])", [unlocked.map((a) => a.id)])).rows;
     return {
       result: await resultView(c, inserted.rows[0], child),
-      newAchievements: titles.map((t) => ({ id: t.id, title: loc(t.title, child.locale), description: loc(t.description, child.locale) })),
+      newAchievements: [...titles.map((t) => ({ id: t.id, title: loc(t.title, child.locale), description: loc(t.description, child.locale) })), ...extra.filter(Boolean)],
       streak: streak.current,
       level: levelForXp(newXp),
       state: publicState(r, s.mode, s.test_id),

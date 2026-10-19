@@ -8,6 +8,7 @@ import { MascotAvatar } from "@/components/MascotAvatar";
 import { MascotView } from "@/components/MascotView";
 import { CHARACTERS, CHARACTER_BY_ID, GRADES, SUBJECTS, type Grade, type MascotId, type Subject } from "@/lib/data";
 import { useAuth, useRequireUser } from "@/lib/auth";
+import { api, type HeroInfo } from "@/lib/api";
 
 type Step = "character" | "welcome" | "grade" | "subject";
 
@@ -17,6 +18,12 @@ export default function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState<Step | null>(null);
   const [mascot, setMascot] = useState<MascotId | null>(null);
+  const [heroes, setHeroes] = useState<Map<string, HeroInfo>>(new Map());
+  useEffect(() => {
+    api<{ heroes: HeroInfo[] }>("/api/heroes")
+      .then((r) => setHeroes(new Map(r.heroes.map((h) => [h.id, h]))))
+      .catch(() => {});
+  }, []);
   const [grade, setGrade] = useState<Grade | null>(null);
   const [subject, setSubject] = useState<Subject | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,15 +90,18 @@ export default function Onboarding() {
                         role="radio"
                         aria-checked={mascot === c.id}
                         onClick={() => setMascot(c.id)}
+                        disabled={heroes.size > 0 && !heroes.get(c.id)?.unlocked}
+                        title={heroes.get(c.id)?.requirement ?? undefined}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0, transition: { delay: i * 0.03 } }}
                         whileHover={{ y: -6 }}
-                        className={`relative flex flex-col items-center rounded-3xl bg-white p-3 text-center ring-2 transition ${mascot === c.id ? "ring-blue-500 shadow-[0_8px_0_#bfdbfe]" : "ring-blue-100 hover:ring-blue-300"}`}
+                        className={`relative flex flex-col items-center rounded-3xl bg-white p-3 text-center ring-2 transition disabled:cursor-not-allowed disabled:opacity-50 ${mascot === c.id ? "ring-blue-500 shadow-[0_8px_0_#bfdbfe]" : "ring-blue-100 hover:ring-blue-300"}`}
                       >
                         {mascot === c.id && <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-xs text-white">✓</span>}
                         <MascotAvatar character={c} size={84} />
                         <span className="mt-1 font-extrabold text-blue-950">{c.name}</span>
                         <span className="text-xs text-slate-500">{c.tagline}</span>
+                        {heroes.size > 0 && !heroes.get(c.id)?.unlocked && <span className="mt-1 text-xs font-bold text-amber-700">🔒 {heroes.get(c.id)?.requirement}</span>}
                       </motion.button>
                     ))}
                   </div>

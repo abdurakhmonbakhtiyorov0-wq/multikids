@@ -104,7 +104,11 @@ export function AppHeader() {
   const [open, setOpen] = useState(false);
   const links = [
     { href: "/dashboard", label: "Bosh sahifa" },
-    { href: "/progress", label: "Mening natijalarim" },
+    { href: "/tests", label: "Testlar" },
+    { href: "/tasks", label: "Vazifalar" },
+    { href: "/shop", label: "Do‘kon" },
+    { href: "/album", label: "Albom" },
+    { href: "/progress", label: "Natijalar" },
     { href: "/profile", label: "Profil" },
   ];
   return (

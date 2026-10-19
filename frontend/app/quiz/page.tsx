@@ -7,8 +7,9 @@ import { AppHeader, Alert, Button, Card, PageLoader, btnClass } from "@/componen
 import { MascotView } from "@/components/MascotView";
 import type { Mood, Reaction } from "@/components/three/Mascot";
 import { REWARDS, SUBJECT_BY_ID } from "@/lib/data";
-import { api, ApiError, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState, type TestId } from "@/lib/api";
-import { useRequireUser } from "@/lib/auth";
+import { confetti, playSound } from "@/lib/effects";
+import { api, ApiError, type NewAchievement, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState, type TestId } from "@/lib/api";
+import { useAuth, useRequireUser } from "@/lib/auth";
 
 const EMPTY: QuizState = { answered: 0, correct: 0, incorrect: 0, score: 0, streak: 0, equipped: [], earned: [] };
 const LETTERS = ["A", "B", "C", "D"];
@@ -21,6 +22,12 @@ function message(r: QuizResult) {
 
 export default function QuizPage() {
   const user = useRequireUser();
+  const { refresh } = useAuth();
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  });
+  const [bonus, setBonus] = useState<{ achievements: NewAchievement[]; level?: number; leveledUp: boolean; streak?: number } | null>(null);
   const [session, setSession] = useState<QuizSession | null>(null);
   const [q, setQ] = useState<QuizQuestion | null>(null);
   const [total, setTotal] = useState(20);
@@ -49,15 +56,28 @@ export default function QuizPage() {
   const finish = useCallback(async (sessionId: string) => {
     setSubmitting(true);
     try {
-      let r: { result: QuizResult };
+      type Finish = { result: QuizResult; newAchievements?: NewAchievement[]; level?: number; streak?: number };
+      let r: Finish;
       try {
-        r = await api<{ result: QuizResult }>(`/api/quiz/${sessionId}/finish`, { method: "POST" });
+        r = await api<Finish>(`/api/quiz/${sessionId}/finish`, { method: "POST" });
       } catch (e) {
         // Imtihon vaqti tugagan lahzada soat farqi tufayli server biroz erta deb hisoblashi mumkin — bir marta qayta urinamiz.
         if (!(e instanceof ApiError) || e.status !== 409) throw e;
         await new Promise((res) => setTimeout(res, 2500));
-        r = await api<{ result: QuizResult }>(`/api/quiz/${sessionId}/finish`, { method: "POST" });
+        r = await api<Finish>(`/api/quiz/${sessionId}/finish`, { method: "POST" });
       }
+      const sound = userRef.current?.child?.soundEnabled ?? true;
+      const before = userRef.current?.child?.level ?? 1;
+      const leveledUp = (r.level ?? before) > before;
+      setBonus({ achievements: r.newAchievements ?? [], level: r.level, leveledUp, streak: r.streak });
+      if (leveledUp) {
+        playSound("levelup", sound);
+        confetti(2);
+      } else if (r.result.accuracy >= 60) {
+        playSound("win", sound);
+        confetti(r.result.accuracy >= 90 ? 1.5 : 1);
+      }
+      void refresh();
       setResult(r.result);
       clearTimeout(moodTimer.current);
       setMood(r.result.accuracy >= 60 ? "celebrating" : r.result.equipped.length ? "wearing_rewards" : "idle");
@@ -67,7 +87,7 @@ export default function QuizPage() {
     } finally {
       setSubmitting(false);
     }
-  }, []);
+  }, [refresh]);
 
   const start = useCallback(async (mode: QuizMode = "quiz", testId?: TestId) => {
     if (!user) return;
@@ -77,6 +97,7 @@ export default function QuizPage() {
     setSession(null);
     setQ(null);
     setResult(null);
+    setBonus(null);
     setReview(false);
     setFeedback(null);
     setIndex(0);
@@ -129,6 +150,7 @@ export default function QuizPage() {
     setSubmitting(true);
     try {
       const r = await api<AnswerResult>(`/api/quiz/${session.sessionId}/answer`, { method: "POST", body: { index, answer } });
+      playSound(r.correct ? "correct" : "wrong", user?.child?.soundEnabled ?? true);
       setFeedback({ ...r, chosen: answer });
       setState(r.state);
       if (r.total) setTotal(r.total);
@@ -305,6 +327,18 @@ export default function QuizPage() {
                     <div className="text-xs font-bold text-slate-500">Aniqlik</div>
                   </div>
                 </div>
+                {bonus && (bonus.leveledUp || bonus.achievements.length > 0 || (bonus.streak ?? 0) > 1) && (
+                  <div className="mt-4 space-y-1 rounded-2xl bg-amber-50 p-3 text-left font-bold text-amber-900" role="status">
+                    {bonus.leveledUp && <p>🆙 Yangi daraja: {bonus.level}-daraja!</p>}
+                    {bonus.achievements.map((a) => (
+                      <p key={a.id}>
+                        🏅 Yangi yutuq: {a.title}
+                        {a.rewardPoints ? ` (+${a.rewardPoints} ball)` : ""}
+                      </p>
+                    ))}
+                    {(bonus.streak ?? 0) > 1 && <p>🔥 {bonus.streak} kunlik seriya!</p>}
+                  </div>
+                )}
                 {result.earned.length > 0 && (
                   <p className="mt-4 font-bold text-slate-600">
                     Yutilgan mukofotlar: {result.earned.map((r) => `${REWARDS[r].emoji} ${REWARDS[r].title}`).join(", ")}

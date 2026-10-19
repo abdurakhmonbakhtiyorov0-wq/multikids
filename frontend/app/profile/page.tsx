@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppHeader, Alert, Button, Card, Field, PageLoader } from "@/components/ui";
 import { MascotAvatar } from "@/components/MascotAvatar";
 import { CHARACTERS, GRADES, SUBJECTS, type Grade, type MascotId, type Subject } from "@/lib/data";
 import { useAuth, useRequireUser } from "@/lib/auth";
+import { api, type HeroInfo } from "@/lib/api";
 
 export default function ProfilePage() {
   const user = useRequireUser();
@@ -18,6 +19,14 @@ function ProfileForm() {
   const [mascot, setMascot] = useState<MascotId>(user!.profile.mascot!);
   const [grade, setGrade] = useState<Grade>(user!.profile.grade!);
   const [subject, setSubject] = useState<Subject>(user!.profile.subject!);
+  const [heroes, setHeroes] = useState<Map<string, HeroInfo>>(new Map());
+  useEffect(() => {
+    api<{ heroes: HeroInfo[] }>("/api/heroes")
+      .then((r) => setHeroes(new Map(r.heroes.map((h) => [h.id, h]))))
+      .catch(() => {});
+  }, []);
+  const [sound, setSound] = useState(user!.child?.soundEnabled ?? true);
+  const [voice, setVoice] = useState(user!.child?.voiceAutoplay ?? false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "info" | "error"; text: string } | null>(null);
 
@@ -26,7 +35,7 @@ function ProfileForm() {
     setBusy(true);
     setMsg(null);
     try {
-      await updateProfile({ name: name.trim(), mascot, grade, subject });
+      await updateProfile({ name: name.trim(), mascot, grade, subject, soundEnabled: sound, voiceAutoplay: voice });
       setMsg({ tone: "info", text: "✓ O‘zgarishlar saqlandi!" });
     } catch (e) {
       setMsg({ tone: "error", text: e instanceof Error ? e.message : "Saqlab bo‘lmadi" });
@@ -49,13 +58,32 @@ function ProfileForm() {
             <p className="mb-2 text-sm font-bold text-slate-700">Qahramon</p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
               {CHARACTERS.map((c) => (
-                <button key={c.id} onClick={() => setMascot(c.id)} aria-pressed={mascot === c.id} className={`flex flex-col items-center rounded-2xl p-2 ring-2 ${mascot === c.id ? "bg-blue-50 ring-blue-500" : "ring-blue-100 hover:ring-blue-300"}`}>
+                <button
+                  key={c.id}
+                  onClick={() => setMascot(c.id)}
+                  disabled={heroes.size > 0 && !heroes.get(c.id)?.unlocked && user!.profile.mascot !== c.id}
+                  aria-pressed={mascot === c.id}
+                  title={heroes.get(c.id)?.requirement ?? undefined}
+                  className={`flex flex-col items-center rounded-2xl p-2 ring-2 disabled:cursor-not-allowed disabled:opacity-40 ${mascot === c.id ? "bg-blue-50 ring-blue-500" : "ring-blue-100 hover:ring-blue-300"}`}
+                >
                   <MascotAvatar character={c} size={60} />
                   <span className="text-xs font-bold">{c.name}</span>
+                  {heroes.size > 0 && !heroes.get(c.id)?.unlocked && user!.profile.mascot !== c.id && <span className="text-[10px] font-bold text-amber-700">🔒 yopiq</span>}
                 </button>
               ))}
             </div>
           </div>
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-sm font-bold text-slate-700">Ovoz va o‘qish</legend>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl bg-blue-50/60 px-4 py-2 font-bold text-slate-700">
+              <input type="checkbox" className="h-5 w-5 accent-blue-600" checked={sound} onChange={(e) => setSound(e.target.checked)} />
+              🔊 O‘yin ovozlari
+            </label>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl bg-blue-50/60 px-4 py-2 font-bold text-slate-700">
+              <input type="checkbox" className="h-5 w-5 accent-blue-600" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
+              🗣 Savollarni o‘zi o‘qib bersin (avtomatik)
+            </label>
+          </fieldset>
           <div>
             <p className="mb-2 text-sm font-bold text-slate-700">Sinf</p>
             <div className="flex flex-wrap gap-2">

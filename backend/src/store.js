@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
 import { pool, tx } from "./db.js";
 import { ApiError } from "./errors.js";
-import { MAX_CHILDREN, levelBounds } from "./quizEngine.js";
+import { MAX_CHILDREN, levelBounds, levelTitle } from "./quizEngine.js";
+
+// Bola qatori + kiyilgan buyumlar ro‘yxati.
+const CHILD_SELECT = `SELECT c.*, coalesce((SELECT array_agg(ci.item_id ORDER BY ci.item_id) FROM child_items ci WHERE ci.child_id = c.id AND ci.equipped), '{}') AS equipped_items FROM children c`;
 
 // Foydalanuvchi (ota-ona) va bola profillari bilan ishlash.
 
@@ -47,11 +50,11 @@ export async function listChildren(userId) {
 export async function resolveChild(userId, childId) {
   if (childId) {
     if (!/^[0-9a-f-]{36}$/i.test(childId)) throw new ApiError(404, "Bola profili topilmadi");
-    const { rows } = await pool.query("SELECT * FROM children WHERE id = $1 AND parent_id = $2", [childId, userId]);
+    const { rows } = await pool.query(`${CHILD_SELECT} WHERE c.id = $1 AND c.parent_id = $2`, [childId, userId]);
     if (!rows[0]) throw new ApiError(404, "Bola profili topilmadi");
     return rows[0];
   }
-  const { rows } = await pool.query("SELECT * FROM children WHERE parent_id = $1 ORDER BY created_at, id LIMIT 1", [userId]);
+  const { rows } = await pool.query(`${CHILD_SELECT} WHERE c.parent_id = $1 ORDER BY c.created_at, c.id LIMIT 1`, [userId]);
   if (!rows[0]) throw new ApiError(404, "Bola profili topilmadi");
   return rows[0];
 }
@@ -99,6 +102,8 @@ export function publicUser(user, child) {
       balance: child.points_balance,
       xp: child.xp,
       level: child.level,
+      levelTitle: levelTitle(child.level),
+      equipped: child.equipped_items ?? [],
       levelFloorXp: floor,
       levelCeilXp: ceil,
       streak: child.current_streak,

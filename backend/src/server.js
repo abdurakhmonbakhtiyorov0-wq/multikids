@@ -10,6 +10,7 @@ import { ApiError, isDbUnavailable } from "./errors.js";
 import { findUserById, findUserByEmail, createAccount, listChildren, resolveChild, createChild, updateChild, publicUser } from "./store.js";
 import { startQuiz, activeQuiz, answerQuiz, finishQuiz, getResult, getProgress, listTests } from "./quizService.js";
 import { TESTS } from "./tests.js";
+import { listShop, buyItem, equipItem, getDaily, answerDaily, getWeekly, claimWeekly, listHeroes, assertHeroUnlocked } from "./gamification.js";
 import { SUBJECTS, GRADES } from "./questions/index.js";
 
 const PORT = Number(process.env.PORT) || 4000;
@@ -121,8 +122,9 @@ const profileSchema = z.object({
 app.patch("/api/me", auth, async (req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) throw bad("Ma’lumotlar noto‘g‘ri");
-  const child = await updateChild(req.child.id, parsed.data);
-  res.json({ user: publicUser(req.user, child) });
+  await assertHeroUnlocked(req.child, parsed.data.mascot);
+  await updateChild(req.child.id, parsed.data);
+  res.json({ user: publicUser(req.user, await resolveChild(req.user.id, req.child.id)) });
 });
 
 // --- Bola profillari ---
@@ -184,6 +186,23 @@ app.get("/api/tests", auth, async (req, res) => {
   if (!parsed.success) throw bad("Sinf yoki fan noto‘g‘ri");
   res.json({ tests: await listTests(req.child, parsed.data) });
 });
+// --- Do‘kon, kun savoli, haftalik topshiriqlar, albom ---
+app.get("/api/shop", auth, async (req, res) => res.json(await listShop(req.child)));
+app.post("/api/shop/:id/buy", auth, async (req, res) => res.json(await buyItem(req.child, req.params.id)));
+app.post("/api/shop/:id/equip", auth, async (req, res) => {
+  const parsed = z.object({ equipped: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) throw bad("Noto‘g‘ri so‘rov");
+  res.json(await equipItem(req.child, req.params.id, parsed.data.equipped));
+});
+app.get("/api/daily", auth, async (req, res) => res.json(await getDaily(req.child)));
+app.post("/api/daily/answer", auth, async (req, res) => {
+  const parsed = z.object({ answer: z.number().int() }).safeParse(req.body);
+  if (!parsed.success) throw bad("Noto‘g‘ri javob");
+  res.json(await answerDaily(req.child, parsed.data.answer));
+});
+app.get("/api/weekly", auth, async (req, res) => res.json(await getWeekly(req.child)));
+app.post("/api/weekly/:id/claim", auth, async (req, res) => res.json(await claimWeekly(req.child, req.params.id)));
+app.get("/api/heroes", auth, async (req, res) => res.json({ heroes: await listHeroes(req.child), current: req.child.mascot }));
 app.get("/api/progress", auth, async (req, res) => res.json(await getProgress(req.child, SUBJECTS)));
 
 app.get("/api/health", async (_req, res) => {
