@@ -319,3 +319,92 @@ test("noto‘g‘ri kirishlar rad etiladi", async () => {
   assert.equal((await call("PATCH", "/api/me", { token, body: { timezone: "Not/AZone" } })).status, 400);
   assert.equal((await call("GET", "/api/health")).status, 200);
 });
+
+test("test katalogi: 5 ta bosqich + aralash + imtihon, bosqichlar ketma-ket ochiladi", async () => {
+  const { token } = await signup("cat");
+  const list = (await call("GET", "/api/tests?grade=3&subject=mathematics", { token })).body.tests;
+  assert.deepEqual(list.map((t) => t.id), ["level-1", "level-2", "level-3", "level-4", "level-5", "mixed", "exam"]);
+  assert.equal(list.filter((t) => t.kind === "level").length, 5);
+  assert.deepEqual(list.map((t) => t.unlocked), [true, false, false, false, false, true, true]);
+  assert.ok(list.every((t) => t.total >= 10 || t.kind === "exam" || t.kind === "mixed"));
+
+  const locked = await start(token, { grade: 3, subject: "mathematics", testId: "level-2" });
+  assert.equal(locked.status, 403);
+
+  // 1-bosqich: faqat oson savollar, 10 ta, hammasi to‘g‘ri -> 2-bosqich ochiladi
+  const s = (await start(token, { grade: 3, subject: "mathematics", testId: "level-1" })).body;
+  assert.equal(s.total, 10);
+  assert.equal(s.testId, "level-1");
+  assert.equal(s.pointsPerCorrect, 5);
+  const { difficulties } = await playAll(token, s);
+  assert.ok(difficulties.every((d) => d === "easy"), `1-bosqichda faqat oson savollar: ${difficulties}`);
+  const fin = await call("POST", `/api/quiz/${s.sessionId}/finish`, { token });
+  assert.equal(fin.body.result.testId, "level-1");
+  assert.equal(fin.body.result.score, 50);
+  assert.equal(fin.body.result.maxScore, 50);
+
+  const after = (await call("GET", "/api/tests?grade=3&subject=mathematics", { token })).body.tests;
+  assert.equal(after[0].attempts, 1);
+  assert.equal(after[0].bestAccuracy, 100);
+  assert.equal(after[1].unlocked, true);
+
+  // 2-bosqich: oson -> o‘rta, darajalar pasaymaydi; "perfect" yutug‘i oson bosqichlar uchun berilmaydi
+  const s2 = (await start(token, { grade: 3, subject: "mathematics", testId: "level-2" })).body;
+  const { difficulties: d2 } = await playAll(token, s2);
+  assert.ok(d2.every((d) => d === "easy" || d === "medium"));
+  const order = { easy: 1, medium: 2, hard: 3 };
+  for (let i = 1; i < d2.length; i++) assert.ok(order[d2[i]] >= order[d2[i - 1]]);
+  const fin2 = await call("POST", `/api/quiz/${s2.sessionId}/finish`, { token });
+  assert.ok(!fin2.body.newAchievements.some((a) => a.id === "perfect"), "oson bosqichda 'Mukammal' yutug‘i berilmaydi");
+
+  // Alohida testlar alohida faol sessiyalar
+  const a = (await start(token, { grade: 3, subject: "mathematics", testId: "level-3" })).body;
+  const b = (await start(token, { grade: 3, subject: "mathematics", testId: "mixed" })).body;
+  assert.notEqual(a.sessionId, b.sessionId);
+  const again = (await start(token, { grade: 3, subject: "mathematics", testId: "level-3" })).body;
+  assert.equal(again.sessionId, a.sessionId);
+  assert.equal(again.resumed, true);
+
+  assert.equal((await start(token, { grade: 3, subject: "mathematics", testId: "nope" })).status, 400);
+});
+
+test("sinov imtihoni: vaqt chegarasi, vaqt tugagach qisman natija va baho", async () => {
+  const { token } = await signup("exam");
+  const s = (await start(token, { grade: 2, subject: "english", testId: "exam" })).body;
+  assert.equal(s.mode, "exam");
+  assert.equal(s.total, 20);
+  assert.ok(s.deadlineAt, "imtihonda muddat bo‘lishi kerak");
+  assert.ok(new Date(s.deadlineAt) > new Date(s.serverNow));
+
+  // 5 ta to‘g‘ri javob, keyin vaqt tugaydi
+  let q = s.question;
+  for (let i = 0; i < 5; i++) {
+    const r = await call("POST", `/api/quiz/${s.sessionId}/answer`, { token, body: { index: i, answer: await correctIndexFor(s.sessionId, q) } });
+    assert.equal(r.status, 200);
+    q = r.body.next;
+  }
+  assert.equal((await call("POST", `/api/quiz/${s.sessionId}/finish`, { token })).status, 409, "vaqt tugamaguncha hamma savolga javob berish shart");
+
+  await db.pool.query("UPDATE quiz_sessions SET deadline_at = now() - interval '1 minute' WHERE id = $1", [s.sessionId]);
+  const late = await call("POST", `/api/quiz/${s.sessionId}/answer`, { token, body: { index: 5, answer: await correctIndexFor(s.sessionId, q) } });
+  assert.equal(late.status, 410, "muddatdan keyin javob qabul qilinmaydi");
+
+  const fin = await call("POST", `/api/quiz/${s.sessionId}/finish`, { token });
+  assert.equal(fin.status, 200);
+  assert.equal(fin.body.result.correct, 5);
+  assert.equal(fin.body.result.incorrect, 15, "javob berilmagan savollar noto‘g‘ri hisoblanadi");
+  assert.equal(fin.body.result.accuracy, 25);
+  assert.equal(fin.body.result.mark, 2);
+  assert.equal(fin.body.result.score, 60);
+  const again = await call("POST", `/api/quiz/${s.sessionId}/finish`, { token });
+  assert.equal(again.body.result.id, fin.body.result.id);
+});
+
+test("bosqichni 60% dan past yakunlasa keyingisi ochilmaydi", async () => {
+  const { token } = await signup("lock");
+  const s = (await start(token, { grade: 1, subject: "mathematics", testId: "level-1" })).body;
+  await playAll(token, s, { wrongAt: [0, 1, 2, 3, 4] });
+  const fin = await call("POST", `/api/quiz/${s.sessionId}/finish`, { token });
+  assert.equal(fin.body.result.accuracy, 50);
+  assert.equal((await start(token, { grade: 1, subject: "mathematics", testId: "level-2" })).status, 403);
+});

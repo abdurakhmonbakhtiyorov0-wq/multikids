@@ -46,10 +46,10 @@ export default function Dashboard() {
               </span>
             </div>
             <h2 className="mt-3 text-2xl font-black">Bilimingni sinab ko‘r!</h2>
-            <p className="mt-1 text-blue-100">20 ta savol · har bir to‘g‘ri javob uchun 10 ball va yangi mukofot</p>
+            <p className="mt-1 text-blue-100">5 bosqichli testlar, aralash test va sinov imtihoni — har bir to‘g‘ri javob uchun ball va mukofot</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/quiz" className="inline-flex min-h-12 items-center rounded-2xl bg-white px-6 font-extrabold text-blue-700 shadow-[0_5px_0_#93c5fd] transition hover:bg-blue-50 active:translate-y-[3px] active:shadow-[0_2px_0_#93c5fd]">
-                {subjectStats?.attempts ? "Davom etish ▶" : "Darsni boshlash ▶"}
+              <Link href="/tests" className="inline-flex min-h-12 items-center rounded-2xl bg-white px-6 font-extrabold text-blue-700 shadow-[0_5px_0_#93c5fd] transition hover:bg-blue-50 active:translate-y-[3px] active:shadow-[0_2px_0_#93c5fd]">
+                {subjectStats?.attempts ? "Testlarni tanlash ▶" : "Testlarni ko‘rish ▶"}
               </Link>
               {!!subjectStats?.mistakesToReview && (
                 <Link href="/quiz?mode=mistakes" className="inline-flex min-h-12 items-center rounded-2xl px-5 font-bold text-white ring-2 ring-white/50 hover:bg-white/10">

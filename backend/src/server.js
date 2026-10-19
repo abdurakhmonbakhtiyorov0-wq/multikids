@@ -8,12 +8,14 @@ import { init, pool } from "./db.js";
 import { jwtSecret, ConfigError } from "./config.js";
 import { ApiError, isDbUnavailable } from "./errors.js";
 import { findUserById, findUserByEmail, createAccount, listChildren, resolveChild, createChild, updateChild, publicUser } from "./store.js";
-import { startQuiz, activeQuiz, answerQuiz, finishQuiz, getResult, getProgress } from "./quizService.js";
+import { startQuiz, activeQuiz, answerQuiz, finishQuiz, getResult, getProgress, listTests } from "./quizService.js";
+import { TESTS } from "./tests.js";
 import { SUBJECTS, GRADES } from "./questions/index.js";
 
 const PORT = Number(process.env.PORT) || 4000;
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:3000,https://multikids-q7zt.vercel.app").split(",").map((s) => s.trim());
 const MASCOTS = ["ajdarcha", "pandacha", "labubu", "mushukcha", "robotcha", "ayiqcha", "minioncha", "spidermancha", "mariocha", "kuchukcha"];
+const RATE_MAX = Number(process.env.RATE_LIMIT_MAX) || 20;
 const VERCEL_ORIGIN = /^https:\/\/multikids[\w-]*\.vercel\.app$/;
 
 const app = express();
@@ -60,7 +62,7 @@ function rateLimit(req, _res, next) {
   if (now > rec.reset) Object.assign(rec, { count: 0, reset: now + 15 * 60_000 });
   rec.count++;
   attempts.set(req.ip, rec);
-  if (rec.count > 20) throw new ApiError(429, "Juda ko‘p urinish. Birozdan keyin qayta urinib ko‘ring.");
+  if (rec.count > RATE_MAX) throw new ApiError(429, "Juda ko‘p urinish. Birozdan keyin qayta urinib ko‘ring.");
   next();
 }
 
@@ -143,7 +145,13 @@ app.post("/api/children", auth, async (req, res) => {
 });
 
 // --- Test ---
-const startSchema = z.object({ grade: z.number().int().min(1).max(4), subject: z.enum(SUBJECTS), mode: z.enum(["quiz", "mistakes"]).optional() });
+const TEST_IDS = TESTS.map((t) => t.id);
+const startSchema = z.object({
+  grade: z.number().int().min(1).max(4),
+  subject: z.enum(SUBJECTS),
+  mode: z.enum(["quiz", "mistakes", "exam"]).optional(),
+  testId: z.enum(TEST_IDS).optional(),
+});
 
 app.post("/api/quiz/start", auth, async (req, res) => {
   const parsed = startSchema.safeParse(req.body);
@@ -152,7 +160,7 @@ app.post("/api/quiz/start", auth, async (req, res) => {
 });
 
 app.get("/api/quiz/active", auth, async (req, res) => {
-  const parsed = startSchema.safeParse({ grade: Number(req.query.grade), subject: req.query.subject, mode: req.query.mode });
+  const parsed = startSchema.safeParse({ grade: Number(req.query.grade), subject: req.query.subject, mode: req.query.mode, testId: req.query.testId });
   if (!parsed.success) throw bad("Sinf yoki fan noto‘g‘ri");
   res.json({ session: await activeQuiz(req.child, parsed.data) });
 });
@@ -171,6 +179,11 @@ app.post("/api/quiz/:id/finish", auth, async (req, res) => {
 
 // --- Natijalar ---
 app.get("/api/results/:id", auth, async (req, res) => res.json({ result: await getResult(req.child, req.params.id) }));
+app.get("/api/tests", auth, async (req, res) => {
+  const parsed = startSchema.pick({ grade: true, subject: true }).safeParse({ grade: Number(req.query.grade ?? req.child.grade), subject: req.query.subject ?? req.child.subject });
+  if (!parsed.success) throw bad("Sinf yoki fan noto‘g‘ri");
+  res.json({ tests: await listTests(req.child, parsed.data) });
+});
 app.get("/api/progress", auth, async (req, res) => res.json(await getProgress(req.child, SUBJECTS)));
 
 app.get("/api/health", async (_req, res) => {

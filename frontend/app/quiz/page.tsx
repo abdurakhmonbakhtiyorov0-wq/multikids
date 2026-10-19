@@ -7,7 +7,7 @@ import { AppHeader, Alert, Button, Card, PageLoader, btnClass } from "@/componen
 import { MascotView } from "@/components/MascotView";
 import type { Mood, Reaction } from "@/components/three/Mascot";
 import { REWARDS, SUBJECT_BY_ID } from "@/lib/data";
-import { api, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState } from "@/lib/api";
+import { api, ApiError, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState, type TestId } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
 
 const EMPTY: QuizState = { answered: 0, correct: 0, incorrect: 0, score: 0, streak: 0, equipped: [], earned: [] };
@@ -43,12 +43,21 @@ export default function QuizPage() {
   }, []);
   useEffect(() => () => clearTimeout(moodTimer.current), []);
 
-  const modeRef = useRef<QuizMode>("quiz");
+  const targetRef = useRef<{ mode: QuizMode; testId?: TestId }>({ mode: "quiz" });
+  const [remaining, setRemaining] = useState<number | null>(null);
 
   const finish = useCallback(async (sessionId: string) => {
     setSubmitting(true);
     try {
-      const r = await api<{ result: QuizResult }>(`/api/quiz/${sessionId}/finish`, { method: "POST" });
+      let r: { result: QuizResult };
+      try {
+        r = await api<{ result: QuizResult }>(`/api/quiz/${sessionId}/finish`, { method: "POST" });
+      } catch (e) {
+        // Imtihon vaqti tugagan lahzada soat farqi tufayli server biroz erta deb hisoblashi mumkin — bir marta qayta urinamiz.
+        if (!(e instanceof ApiError) || e.status !== 409) throw e;
+        await new Promise((res) => setTimeout(res, 2500));
+        r = await api<{ result: QuizResult }>(`/api/quiz/${sessionId}/finish`, { method: "POST" });
+      }
       setResult(r.result);
       clearTimeout(moodTimer.current);
       setMood(r.result.accuracy >= 60 ? "celebrating" : r.result.equipped.length ? "wearing_rewards" : "idle");
@@ -60,9 +69,10 @@ export default function QuizPage() {
     }
   }, []);
 
-  const start = useCallback(async (mode: QuizMode = "quiz") => {
+  const start = useCallback(async (mode: QuizMode = "quiz", testId?: TestId) => {
     if (!user) return;
-    modeRef.current = mode;
+    targetRef.current = { mode, testId };
+    setRemaining(null);
     setError("");
     setSession(null);
     setQ(null);
@@ -73,12 +83,13 @@ export default function QuizPage() {
     setState(EMPTY);
     setMood("idle");
     try {
-      const s = await api<QuizSession>("/api/quiz/start", { method: "POST", body: { grade: user.profile.grade, subject: user.profile.subject, mode } });
+      const s = await api<QuizSession>("/api/quiz/start", { method: "POST", body: { grade: user.profile.grade, subject: user.profile.subject, mode, testId } });
       setSession(s);
       setQ(s.question);
       setTotal(s.total);
       setIndex(s.index);
       setState(s.state);
+      if (s.deadlineAt) setRemaining(Math.max(0, Math.round((new Date(s.deadlineAt).getTime() - new Date(s.serverNow).getTime()) / 1000)));
       if (!s.question) await finish(s.sessionId);
       setMoodFor("thinking", 1400);
     } catch (e) {
@@ -90,9 +101,27 @@ export default function QuizPage() {
   useEffect(() => {
     if (user && !initialized.current) {
       initialized.current = true;
-      start(new URLSearchParams(window.location.search).get("mode") === "mistakes" ? "mistakes" : "quiz");
+      const params = new URLSearchParams(window.location.search);
+      const test = params.get("test") as TestId | null;
+      queueMicrotask(() => {
+        if (params.get("mode") === "mistakes") start("mistakes");
+        else if (test) start(test === "exam" ? "exam" : "quiz", test);
+        else start("quiz", "mixed");
+      });
     }
   }, [user, start]);
+
+  useEffect(() => {
+    if (remaining === null || result || !session) return;
+    const t = setTimeout(
+      () => {
+        if (remaining <= 0) finish(session.sessionId);
+        else setRemaining(remaining - 1);
+      },
+      remaining <= 0 ? 0 : 1000,
+    );
+    return () => clearTimeout(t);
+  }, [remaining, result, session, finish]);
 
   async function choose(answer: number) {
     if (!session || feedback || inFlight.current) return;
@@ -108,7 +137,8 @@ export default function QuizPage() {
       if (r.correct) setMoodFor(ev.type === "celebrate" || r.state.streak >= 5 ? "celebrating" : "happy", 1900);
       else setMoodFor("sad", 2000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Javobni yuborib bo‘lmadi");
+      if (e instanceof ApiError && e.status === 410 && session.deadlineAt) await finish(session.sessionId);
+      else setError(e instanceof Error ? e.message : "Javobni yuborib bo‘lmadi");
     } finally {
       inFlight.current = false;
       setSubmitting(false);
@@ -129,6 +159,8 @@ export default function QuizPage() {
 
   if (!user) return <PageLoader />;
   const subj = SUBJECT_BY_ID[user.profile.subject!];
+  const levelNo = result?.testId?.startsWith("level-") ? Number(result.testId.slice(6)) : 0;
+  const nextLevel: TestId | null = result && levelNo > 0 && levelNo < 5 && result.accuracy >= 60 ? (`level-${levelNo + 1}` as TestId) : null;
   const mascotPanel = (
     <div className="rounded-4xl bg-linear-to-b from-blue-100 via-white to-white p-2 ring-1 ring-blue-100">
       <MascotView id={user.profile.mascot!} mood={mood} equipped={result ? result.equipped : state.equipped} reaction={reaction} className="h-56 sm:h-72 lg:h-[440px]" />
@@ -151,7 +183,7 @@ export default function QuizPage() {
           {error && (
             <Alert>
               {error}{" "}
-              <button className="underline" onClick={() => start(modeRef.current)}>
+              <button className="underline" onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>
                 Qayta urinish
               </button>
             </Alert>
@@ -162,9 +194,14 @@ export default function QuizPage() {
             <>
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-slate-600">
                 <span>
-                  {subj.emoji} {subj.title} · {user.profile.grade}-sinf
+                  {subj.emoji} {subj.title} · {user.profile.grade}-sinf · {session.testTitle}
                 </span>
                 <span className="flex gap-2">
+                  {remaining !== null && (
+                    <span className={`rounded-full px-3 py-1 ring-1 ${remaining <= 60 ? "bg-red-50 text-red-700 ring-red-200" : "bg-white ring-blue-100"}`} role="timer" aria-label="Qolgan vaqt">
+                      ⏱ {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+                    </span>
+                  )}
                   <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100">⭐ {state.score} ball</span>
                   <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100">✅ {state.correct}</span>
                   {state.streak >= 2 && <span className="rounded-full bg-blue-600 px-3 py-1 text-white">🔥 {state.streak}</span>}
@@ -219,7 +256,7 @@ export default function QuizPage() {
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
                           <div className={`mt-5 rounded-2xl p-4 ${feedback.correct ? "bg-emerald-50" : "bg-amber-50"}`} role="status" aria-live="polite">
                             <p className={`text-lg font-black ${feedback.correct ? "text-emerald-700" : "text-amber-700"}`}>
-                              {feedback.correct ? `✓ To‘g‘ri javob! +${session.mode === "mistakes" ? 5 : 10} ball` : "✗ Yana bir bor urinib ko‘r! Xatolardan o‘rganamiz."}
+                              {feedback.correct ? `✓ To‘g‘ri javob! +${session.pointsPerCorrect} ball` : "✗ Yana bir bor urinib ko‘r! Xatolardan o‘rganamiz."}
                             </p>
                             <p className="mt-1 text-slate-700">{feedback.explanation}</p>
                             {feedback.event.type === "equip" && <p className="mt-1 font-bold text-blue-700">🎁 Yangi mukofot: {REWARDS[feedback.event.item].emoji} {REWARDS[feedback.event.item].title}</p>}
@@ -245,7 +282,11 @@ export default function QuizPage() {
             <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
               <Card className="text-center">
                 <p className="text-5xl">{result.accuracy >= 85 ? "🏆" : result.accuracy >= 60 ? "🌟" : "💪"}</p>
-                <h1 className="mt-2 text-3xl font-black text-blue-950">{message(result)}</h1>
+                {result.testTitle && <p className="mt-2 text-sm font-extrabold uppercase tracking-wide text-blue-600">{result.testTitle}</p>}
+                <h1 className="mt-1 text-3xl font-black text-blue-950">{message(result)}</h1>
+                {result.mark ? (
+                  <p className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-violet-100 px-5 py-2 text-2xl font-black text-violet-800">Baho: {result.mark}</p>
+                ) : null}
                 <p className="mt-4 text-6xl font-black text-blue-600">
                   {result.score}
                   <span className="text-2xl text-slate-400"> / {result.maxScore}</span>
@@ -270,7 +311,7 @@ export default function QuizPage() {
                   </p>
                 )}
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
-                  <Button onClick={() => start("quiz")}>Qayta boshlash</Button>
+                  <Button onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>Qayta boshlash</Button>
                   {result.incorrect > 0 && result.mode !== "mistakes" && (
                     <Button variant="secondary" onClick={() => start("mistakes")}>
                       Xatolar ustida ishlash
@@ -281,8 +322,14 @@ export default function QuizPage() {
                       Xatolarni ko‘rish
                     </Button>
                   )}
-                  <Link href="/dashboard" className={btnClass("secondary")}>
-                    Bosh sahifaga qaytish
+                  {nextLevel && (
+                    <Button onClick={() => start("quiz", nextLevel)}>Keyingi bosqich ▶</Button>
+                  )}
+                  <Link href="/tests" className={btnClass("secondary")}>
+                    Barcha testlar
+                  </Link>
+                  <Link href="/dashboard" className={btnClass("ghost")}>
+                    Bosh sahifa
                   </Link>
                 </div>
               </Card>
@@ -308,7 +355,7 @@ export default function QuizPage() {
                 ))}
               </ol>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button onClick={() => start("quiz")}>Qayta boshlash</Button>
+                <Button onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>Qayta boshlash</Button>
                 <Link href="/dashboard" className={btnClass("secondary")}>
                   Bosh sahifaga qaytish
                 </Link>

@@ -58,6 +58,7 @@ export async function startTestDb() {
   }
   process.env.JWT_SECRET = "test-secret-".padEnd(48, "x");
   process.env.MULTIKIDS_NO_LISTEN = "1";
+  process.env.RATE_LIMIT_MAX = "10000";
   const { migrate } = await import("../scripts/migrate.js");
   const { seed } = await import("../scripts/seed.js");
   await migrate(() => {});

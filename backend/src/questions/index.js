@@ -4,6 +4,12 @@ import reading from "./reading.js";
 import naturalScience from "./natural-science.js";
 import english from "./english.js";
 import russian from "./russian.js";
+import extraMathematics from "./extra/mathematics.js";
+import extraNativeLanguage from "./extra/native-language.js";
+import extraReading from "./extra/reading.js";
+import extraNaturalScience from "./extra/natural-science.js";
+import extraEnglish from "./extra/english.js";
+import extraRussian from "./extra/russian.js";
 
 export const SUBJECTS = ["mathematics", "native-language", "reading", "natural-science", "english", "russian"];
 export const GRADES = [1, 2, 3, 4];
@@ -16,6 +22,16 @@ const raw = {
   english,
   russian,
 };
+
+const extra = {
+  mathematics: extraMathematics,
+  "native-language": extraNativeLanguage,
+  reading: extraReading,
+  "natural-science": extraNaturalScience,
+  english: extraEnglish,
+  russian: extraRussian,
+};
+const LEVEL_NAME = { 1: "easy", 2: "medium", 3: "hard" };
 
 function difficultyFor(index, total) {
   const r = index / total;
@@ -38,6 +54,19 @@ for (const subject of SUBJECTS) {
       explanation: explanation ?? `To‘g‘ri javob: ${correct}`,
       difficulty: difficultyFor(i, list.length),
     }));
+    // Qo‘shimcha savollar: qiyinlik aniq ko‘rsatilgan, ID lari "-x01" ko‘rinishida.
+    (extra[subject][grade] ?? []).forEach(([level, prompt, correct, wrong, explanation], i) => {
+      bank[`${subject}:${grade}`].push({
+        id: `${subject}-g${grade}-x${String(i + 1).padStart(2, "0")}`,
+        grade,
+        subject,
+        prompt,
+        options: [correct, ...wrong],
+        correctAnswerIndex: 0,
+        explanation: explanation ?? `To‘g‘ri javob: ${correct}`,
+        difficulty: LEVEL_NAME[level],
+      });
+    });
   }
 }
 
