@@ -6,15 +6,33 @@ export const API_URL =
 const TOKEN_KEY = "bilimdon-token";
 
 export type Profile = { mascot: MascotId | null; grade: Grade | null; subject: Subject | null };
-export type User = { id: string; name: string; email: string; profile: Profile; createdAt: string };
+export type ChildInfo = {
+  id: string;
+  locale: "uz" | "ru";
+  soundEnabled: boolean;
+  voiceAutoplay: boolean;
+  timezone: string;
+  balance: number;
+  xp: number;
+  level: number;
+  levelFloorXp: number;
+  levelCeilXp: number;
+  streak: number;
+  bestStreak: number;
+};
+export type User = { id: string; name: string; email: string; profile: Profile; createdAt: string; child?: ChildInfo };
 
-export type QuizQuestion = { id: string; prompt: string; options: string[]; difficulty: string };
+export type QuizQuestion = { id: string; prompt: string; options: string[]; difficulty: string; topic?: string; image?: { src: string; alt: string } | null };
+export type QuizMode = "quiz" | "mistakes";
+export type QuizSession = { sessionId: string; mode: QuizMode; total: number; index: number; question: QuizQuestion | null; state: QuizState; resumed: boolean };
 export type QuizState = { answered: number; correct: number; incorrect: number; score: number; streak: number; equipped: RewardId[]; earned: RewardId[] };
 export type RewardEvent = { type: "equip"; item: RewardId } | { type: "remove"; item: RewardId | null } | { type: "celebrate" };
-export type AnswerResult = { correct: boolean; correctIndex: number; explanation: string; event: RewardEvent; state: QuizState };
+export type AnswerResult = { correct: boolean; correctIndex: number; explanation: string; event: RewardEvent; state: QuizState; next: QuizQuestion | null; total?: number };
 export type ReviewAnswer = { questionId: string; prompt: string; options: string[]; chosen: number; correctIndex: number; explanation: string };
 export type QuizResult = {
   id: string;
+  mode?: QuizMode;
+  xp?: number;
   grade: Grade;
   subject: Subject;
   total: number;
@@ -34,7 +52,7 @@ export type Progress = {
   totalPoints: number;
   quizzes: number;
   totalCorrect: number;
-  bySubject: Record<Subject, { attempts: number; bestScore: number; avgAccuracy: number }>;
+  bySubject: Record<Subject, { attempts: number; bestScore: number; avgAccuracy: number; mistakesToReview?: number }>;
   rewards: RewardId[];
   achievements: { id: string; title: string; description: string; unlocked: boolean }[];
   recent: QuizResult[];
