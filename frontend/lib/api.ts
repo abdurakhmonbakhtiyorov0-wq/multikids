@@ -177,7 +177,8 @@ export const parentStore = {
 };
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-  if (!API_URL) throw new ApiError(tr("Backend manzili sozlanmagan (NEXT_PUBLIC_API_URL)."), 0);
+  // Bo‘sh manzil faqat ishlab chiqishda (proxy) mumkin; production'da NEXT_PUBLIC_API_URL siz so‘rov yuboradigan joy yo‘q.
+  if (!API_URL && process.env.NODE_ENV !== "development") throw new ApiError(tr("Backend manzili sozlanmagan (NEXT_PUBLIC_API_URL)."), 0);
   const token = tokenStore.get();
   let res: Response;
   try {

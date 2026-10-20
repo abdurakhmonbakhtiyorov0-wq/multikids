@@ -7,6 +7,25 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,
+  // `next dev` boshqa host nomlaridan (tunnel, lokal tarmoq IP si) kelgan so‘rovlarni bloklaydi — sayt "jonlanmaydi".
+  // Mashhur tunnel xizmatlari va lokal tarmoq ruxsat etiladi; boshqasi kerak bo‘lsa: DEV_ALLOWED_ORIGINS=host1,host2
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "192.168.*.*",
+    "10.*.*.*",
+    "**.trycloudflare.com",
+    "**.ngrok-free.app",
+    "**.ngrok-free.dev",
+    "**.ngrok.io",
+    "**.ngrok.app",
+    "**.ngrok.dev",
+    "**.loca.lt",
+    "**.lhr.life",
+    "**.devtunnels.ms",
+    "**.serveo.net",
+    "**.ts.net",
+    ...(process.env.DEV_ALLOWED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) ?? []),
+  ],
   // Faqat ishlab chiqishda: brauzer /api/* ni shu saytga yuboradi, sayt esa uni lokal backend'ga uzatadi.
   // Shuning uchun tunnel (ngrok, Cloudflare...) orqali ochilganda ham bitta tunnel yetadi va CORS kerak emas.
   async rewrites() {
