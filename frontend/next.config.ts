@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,
+  // Faqat ishlab chiqishda: brauzer /api/* ni shu saytga yuboradi, sayt esa uni lokal backend'ga uzatadi.
+  // Shuning uchun tunnel (ngrok, Cloudflare...) orqali ochilganda ham bitta tunnel yetadi va CORS kerak emas.
+  async rewrites() {
+    if (process.env.NODE_ENV !== "development") return [];
+    const target = (process.env.API_PROXY_TARGET || "http://localhost:4000").replace(/\/$/, "");
+    return [{ source: "/api/:path*", destination: `${target}/api/:path*` }];
+  },
   async headers() {
     return [
       {

@@ -1,9 +1,12 @@
 import type { Grade, MascotId, ModuleId, RewardId, Subject } from "./data";
 import { tr } from "./i18n";
 
-// Ishlab chiqarishda NEXT_PUBLIC_API_URL majburiy (Vercel loyihasi sozlamalarida). Faqat lokal ishlab chiqishda localhost:4000 ishlatiladi.
+// Ishlab chiqarishda NEXT_PUBLIC_API_URL majburiy (Vercel loyihasi sozlamalarida).
+// `next dev` da u bo‘sh qoldiriladi: so‘rovlar shu saytga ketadi va next.config.ts dagi proxy ularni lokal backend'ga uzatadi
+// (localhost ham, tunnel ham bir xil ishlaydi).
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" && window.location.hostname !== "localhost" ? "" : "http://localhost:4000");
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "development" || (typeof window !== "undefined" && window.location.hostname !== "localhost") ? "" : "http://localhost:4000");
 const TOKEN_KEY = "bilimdon-token";
 
 export type Profile = { mascot: MascotId | null; grade: Grade | null; subject: Subject | null; module: ModuleId | null };
