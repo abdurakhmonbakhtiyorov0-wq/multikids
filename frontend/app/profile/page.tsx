@@ -4,10 +4,10 @@ import { useT } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { AppHeader, Alert, Button, Card, Field, PageLoader } from "@/components/ui";
 import { MascotAvatar } from "@/components/MascotAvatar";
-import { CHARACTERS, GRADES, type Grade, type MascotId, type Subject } from "@/lib/data";
+import { CHARACTERS, GRADES, MODULES, gradeLabel, type Grade, type MascotId, type Subject } from "@/lib/data";
 import { useCurriculum } from "@/lib/curriculum";
 import { useAuth, useRequireUser } from "@/lib/auth";
-import { api, ApiError, parentStore, type HeroInfo } from "@/lib/api";
+import { api, ApiError, childStore, parentStore, type HeroInfo } from "@/lib/api";
 import Link from "next/link";
 import { InstallApp } from "@/components/InstallApp";
 import { readAppearance, saveAppearance, type FontSize, type Theme } from "@/lib/appearance";
@@ -18,7 +18,7 @@ export default function ProfilePage() {
   return <ProfileForm key={user.id} />;
 }
 
-/** Sinfni faqat ota-ona o‘zgartira oladi: PIN-kod kiritilmaguncha tugmalar yopiq. */
+/** Boshlang‘ich sinfdan (1–4) o‘tish uchun ota-ona PIN-kodi kerak; 5-sinfdan boshlab bu talab yo‘q. */
 function GradeLock({ onUnlocked }: { onUnlocked: () => void }) {
   const t = useT();
   const [hasPin, setHasPin] = useState<boolean | null>(null);
@@ -48,7 +48,7 @@ function GradeLock({ onUnlocked }: { onUnlocked: () => void }) {
 
   return (
     <div className="mt-3 space-y-2 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">
-      <p className="font-bold">{t("🔒 Sinfni faqat ota-ona o‘zgartira oladi.")}</p>
+      <p className="font-bold">{t("🔒 Boshlang‘ich sinfdan o‘tish uchun ota-ona PIN-kodi kerak.")}</p>
       {hasPin === false ? (
         <>
           <p>{t("Avval ota-ona bo‘limida PIN-kod o‘rnating.")}</p>
@@ -80,23 +80,93 @@ function GradeLock({ onUnlocked }: { onUnlocked: () => void }) {
   );
 }
 
+/**
+ * Sinfni almashtirish oynasi. Har bir sinf — alohida profil: hozirgi sinfdagi yutuqlar shu sinfda qoladi,
+ * yangi sinf noldan boshlanadi, avvalgisiga qaytsangiz yutuqlar qaytadi.
+ */
+function GradeChangeDialog({ current, onClose }: { current: Grade; onClose: () => void }) {
+  const t = useT();
+  const needPin = current <= 4; // boshlang‘ich sinfdan o‘tish — ota-ona PIN-kodi bilan
+  const [unlocked, setUnlocked] = useState(() => parentStore.get() !== null);
+  const [target, setTarget] = useState<Grade | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirm() {
+    if (!target) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{ childId: string }>("/api/me/grade", { method: "POST", body: { grade: target } });
+      childStore.set(r.childId);
+      // Sahifani to‘liq yangilaymiz: oldingi sinf ma’lumoti xotirada qolib, aralashib ketmasin.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = "/dashboard";
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 403) setUnlocked(false);
+      setError(e instanceof Error ? e.message : t("Xatolik yuz berdi"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-900/60 p-4" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="grade-dialog-title" onClick={(e) => e.stopPropagation()} className="w-full max-w-lg space-y-4 rounded-3xl bg-white p-5 shadow-xl sm:p-6">
+        <h2 id="grade-dialog-title" className="text-2xl font-black text-blue-950">
+          {t("Sinfni o‘zgartirish")}
+        </h2>
+        <p className="rounded-2xl bg-amber-50 p-3 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">
+          {t("Sinf almashtirilganda hozirgi sinfdagi barcha yutuqlar shu sinfda saqlanadi. Boshqa sinfga o‘tsangiz, qolgan hammasi (ball, daraja, yutuqlar, natijalar) yangi sinfda noldan boshlanadi. Avvalgi sinfga qaytsangiz, o‘sha yutuqlar qaytadi.")}
+        </p>
+        {MODULES.map((m) => (
+          <fieldset key={m.id} className="space-y-1.5">
+            <legend className="text-sm font-bold text-slate-600">
+              {t(m.title)} ({t(m.ages)})
+            </legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t(m.title)}>
+              {GRADES.filter((g) => m.grades.includes(g.id)).map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={target === g.id}
+                  disabled={g.id === current}
+                  onClick={() => setTarget(g.id)}
+                  className={`rounded-2xl px-4 py-2 font-bold ring-2 transition disabled:cursor-not-allowed disabled:opacity-40 ${target === g.id ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-slate-700 ring-blue-100 hover:ring-blue-300"}`}
+                >
+                  {gradeLabel(t, g.id)}
+                  {g.id === current && ` · ${t("hozirgi")}`}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        {needPin && !unlocked && <GradeLock onUnlocked={() => setUnlocked(true)} />}
+        {error && <Alert>{error}</Alert>}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            {t("Bekor qilish")}
+          </Button>
+          <Button onClick={confirm} loading={busy} disabled={!target || (needPin && !unlocked)}>
+            {t("Sinfga o‘tish")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileForm() {
   const t = useT();
-  const [parentUnlocked, setParentUnlocked] = useState(() => parentStore.get() !== null);
+  const [changingGrade, setChangingGrade] = useState(false);
   const { user, updateProfile } = useAuth();
   const [name, setName] = useState(user!.name);
   const [mascot, setMascot] = useState<MascotId | null>(user!.profile.mascot);
-  const [grade, setGrade] = useState<Grade>(user!.profile.grade!);
+  const grade = user!.profile.grade!;
   const [subject, setSubject] = useState<Subject>(user!.profile.subject!);
   const junior = user!.profile.module === "junior";
   const curriculum = useCurriculum();
   const subjectOptions = curriculum.subjects(grade);
-  // Sinf almashganda fan sinfga mos bo‘lmasa, birinchi tayyor fan tanlanadi.
-  const pickGrade = (g: Grade) => {
-    setGrade(g);
-    const options = curriculum.subjects(g);
-    if (options.length && !options.some((o) => o.id === subject && o.ready)) setSubject((options.find((o) => o.ready) ?? options[0]).id);
-  };
   const [heroes, setHeroes] = useState<Map<string, HeroInfo>>(new Map());
   useEffect(() => {
     api<{ heroes: HeroInfo[] }>("/api/heroes")
@@ -118,10 +188,9 @@ function ProfileForm() {
     setBusy(true);
     setMsg(null);
     try {
-      await updateProfile({ name: name.trim(), ...(junior && mascot ? { mascot } : {}), grade, subject, soundEnabled: sound });
+      await updateProfile({ name: name.trim(), ...(junior && mascot ? { mascot } : {}), subject, soundEnabled: sound });
       setMsg({ tone: "info", text: t("✓ O‘zgarishlar saqlandi!") });
     } catch (e) {
-      if (e instanceof ApiError && e.status === 403) setParentUnlocked(false); // ota-ona sessiyasi tugagan
       setMsg({ tone: "error", text: e instanceof Error ? e.message : t("Saqlab bo‘lmadi") });
     } finally {
       setBusy(false);
@@ -186,20 +255,13 @@ function ProfileForm() {
           </fieldset>
           <div>
             <p className="mb-2 text-sm font-bold text-slate-700">{t("Sinf")}</p>
-            <div className="flex flex-wrap gap-2">
-              {GRADES.map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => pickGrade(g.id)}
-                  aria-pressed={grade === g.id}
-                  disabled={!parentUnlocked}
-                  className={`${chip(grade === g.id)} disabled:cursor-not-allowed ${parentUnlocked || grade === g.id ? "" : "disabled:opacity-50"}`}
-                >
-                  {t(g.title)}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-2xl bg-blue-50 px-4 py-2 font-black text-blue-800 ring-2 ring-blue-100">{gradeLabel(t, grade)}</span>
+              <Button variant="secondary" onClick={() => setChangingGrade(true)}>
+                {t("Sinfni o‘zgartirish")}
+              </Button>
             </div>
-            {!parentUnlocked && <GradeLock onUnlocked={() => setParentUnlocked(true)} />}
+            <p className="mt-2 text-sm text-slate-500">{t("Har bir sinfning yutuqlari alohida saqlanadi.")}</p>
           </div>
           <div>
             <p className="mb-2 text-sm font-bold text-slate-700">{t("Asosiy fan")}</p>
@@ -217,6 +279,7 @@ function ProfileForm() {
             {t("Saqlash")}
           </Button>
         </Card>
+        {changingGrade && <GradeChangeDialog current={grade} onClose={() => setChangingGrade(false)} />}
       </main>
     </>
   );

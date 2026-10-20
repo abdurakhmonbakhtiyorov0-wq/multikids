@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { pool, tx } from "./db.js";
 import { ApiError } from "./errors.js";
 import { MAX_CHILDREN, levelBounds, levelTitle } from "./quizEngine.js";
-import { moduleOfGrade } from "./curriculum.js";
+import { moduleOfGrade, subjectsForGrade, READY_MIN_QUESTIONS } from "./curriculum.js";
 
 // Bola qatori + kiyilgan buyumlar ro‘yxati.
 const CHILD_SELECT = `SELECT c.*, coalesce((SELECT array_agg(ci.item_id ORDER BY ci.item_id) FROM child_items ci WHERE ci.child_id = c.id AND ci.equipped), '{}') AS equipped_items FROM children c`;
@@ -45,6 +45,21 @@ export async function listChildren(userId) {
 }
 
 /**
+ * O‘quvchilar ro‘yxati: bitta o‘quvchining sinf profillari (person_id bir xil) bitta element bo‘ladi,
+ * vakil — oxirgi faol (updated_at) profil. Tartib: o‘quvchi qachon yaratilgani bo‘yicha.
+ */
+export async function listPeople(userId) {
+  const rows = await listChildren(userId);
+  const groups = new Map();
+  for (const r of rows) {
+    const g = groups.get(r.person_id);
+    if (!g) groups.set(r.person_id, { first: r.created_at, rep: r });
+    else if (r.updated_at > g.rep.updated_at) g.rep = r;
+  }
+  return [...groups.values()].sort((a, b) => a.first - b.first).map((g) => g.rep);
+}
+
+/**
  * Faol bola: X-Child-Id ko‘rsatilgan bo‘lsa — aynan shu (faqat shu ota-onaniki bo‘lsa), aks holda eng birinchisi.
  * Boshqa ota-onaning bolasi ID sini yuborish 404 qaytaradi.
  */
@@ -55,15 +70,43 @@ export async function resolveChild(userId, childId) {
     if (!rows[0]) throw new ApiError(404, "Bola profili topilmadi");
     return rows[0];
   }
-  const { rows } = await pool.query(`${CHILD_SELECT} WHERE c.parent_id = $1 ORDER BY c.created_at, c.id LIMIT 1`, [userId]);
-  if (!rows[0]) throw new ApiError(404, "Bola profili topilmadi");
+  // Birinchi o‘quvchining oxirgi faol sinf profili
+  const first = (await listPeople(userId))[0];
+  if (!first) throw new ApiError(404, "Bola profili topilmadi");
+  const { rows } = await pool.query(`${CHILD_SELECT} WHERE c.id = $1`, [first.id]);
   return rows[0];
+}
+
+/**
+ * Sinfni almashtirish: har bir sinf alohida profil. Mavjud bo‘lsa — o‘sha profilga o‘tiladi (eski yutuqlar qaytadi),
+ * yo‘q bo‘lsa — yangi, noldan boshlanadigan profil yaratiladi (ism va sozlamalar ko‘chiriladi). Faol profil id sini qaytaradi.
+ */
+export async function switchGrade(child, grade) {
+  return tx(async (c) => {
+    const cur = (await c.query("SELECT * FROM children WHERE id = $1 FOR UPDATE", [child.id])).rows[0];
+    if (cur.grade === grade) return cur.id;
+    const existing = (await c.query("SELECT id FROM children WHERE person_id = $1 AND grade = $2", [cur.person_id, grade])).rows[0];
+    if (existing) {
+      await c.query("UPDATE children SET updated_at = now() WHERE id = $1", [existing.id]);
+      return existing.id;
+    }
+    // Yangi sinfda savollari tayyor birinchi fan tanlanadi (tayyor bo‘lmasa — birinchisi).
+    const ready = new Set((await c.query("SELECT subject FROM questions WHERE active AND grade = $1 GROUP BY subject HAVING count(*) >= $2", [grade, READY_MIN_QUESTIONS])).rows.map((r) => r.subject));
+    const subjects = subjectsForGrade(grade);
+    const subject = subjects.find((s) => ready.has(s)) ?? subjects[0] ?? null;
+    const { rows } = await c.query(
+      `INSERT INTO children (parent_id, person_id, name, grade, subject, mascot, locale, sound_enabled, voice_autoplay, timezone, daily_goal)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      [cur.parent_id, cur.person_id, cur.name, grade, subject, cur.mascot, cur.locale, cur.sound_enabled, cur.voice_autoplay, cur.timezone, cur.daily_goal],
+    );
+    return rows[0].id;
+  });
 }
 
 export async function createChild(userId, { name, grade, mascot }) {
   return tx(async (c) => {
     await c.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]); // parallel yaratishda limitni buzmaslik uchun
-    const { rows: cnt } = await c.query("SELECT count(*)::int AS n FROM children WHERE parent_id = $1", [userId]);
+    const { rows: cnt } = await c.query("SELECT count(DISTINCT person_id)::int AS n FROM children WHERE parent_id = $1", [userId]);
     if (cnt[0].n >= MAX_CHILDREN) throw new ApiError(409, `Profillar soni ${MAX_CHILDREN} tadan oshmasligi kerak`);
     const { rows } = await c.query(
       "INSERT INTO children (parent_id, name, grade, mascot) VALUES ($1, $2, $3, $4) RETURNING *",

@@ -100,10 +100,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
+  // 5-sinfdan SAT gacha ota-ona roziligi oynasi ko‘rsatilmaydi: foydalanuvchining o‘zi — kirish Maxfiylik siyosatiga rozilik.
+  const needsParentGate = !!user?.needsConsent && (user.profile.module ?? moduleStore.get() ?? "junior") === "junior";
+  const autoConsent = !!user?.needsConsent && !needsParentGate;
+  useEffect(() => {
+    if (autoConsent) queueMicrotask(() => void acceptConsent());
+  }, [autoConsent, acceptConsent]);
+
   return (
     <Ctx.Provider value={{ user, loading, login, register, logout, updateProfile, refresh }}>
       {children}
-      {user?.needsConsent && <ConsentGate onAccept={acceptConsent} onLogout={logout} />}
+      {needsParentGate && <ConsentGate onAccept={acceptConsent} onLogout={logout} />}
     </Ctx.Provider>
   );
 }

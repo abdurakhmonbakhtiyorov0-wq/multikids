@@ -7,7 +7,7 @@ import { z } from "zod";
 import { init, pool } from "./db.js";
 import { jwtSecret, ConfigError } from "./config.js";
 import { ApiError, isDbUnavailable } from "./errors.js";
-import { findUserById, findUserByEmail, createAccount, listChildren, resolveChild, createChild, updateChild, publicUser } from "./store.js";
+import { findUserById, findUserByEmail, createAccount, listPeople, resolveChild, createChild, updateChild, switchGrade, publicUser } from "./store.js";
 import { startQuiz, activeQuiz, answerQuiz, finishQuiz, getResult, getProgress, listTests } from "./quizService.js";
 import { TESTS } from "./tests.js";
 import { limit, reset as resetLimit } from "./rateLimit.js";
@@ -183,9 +183,10 @@ app.patch("/api/me", auth, async (req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) throw bad("Ma’lumotlar noto‘g‘ri");
   await assertHeroUnlocked(req.child, parsed.data.mascot);
-  // Birinchi tanlov (ro‘yxatdan o‘tishda) erkin; tanlangan sinfni faqat ota-ona (PIN orqali) o‘zgartira oladi.
+  // Bu yerda sinf faqat birinchi marta tanlanadi (ro‘yxatdan o‘tishda). Almashtirish — alohida so‘rov: POST /api/me/grade,
+  // chunki har bir sinf alohida profil (ball, yutuq, natijalar o‘sha sinfda qoladi).
   if (parsed.data.grade !== undefined && req.child.grade != null && parsed.data.grade !== req.child.grade) {
-    assertParent(req, "Sinfni faqat ota-ona o‘zgartira oladi. Ota-ona PIN-kodini kiriting.");
+    throw new ApiError(409, "Sinfni almashtirish uchun profildagi ‘Sinfni o‘zgartirish’ tugmasidan foydalaning");
   }
   // Fan sinfga mos bo‘lishi kerak. Sinf almashganda eski fan yangi sinfda yo‘q bo‘lsa, birinchi mavjud fan tanlanadi.
   const nextGrade = parsed.data.grade ?? req.child.grade;
@@ -198,10 +199,24 @@ app.patch("/api/me", auth, async (req, res) => {
   res.json({ user: await userPayload(req.user, await resolveChild(req.user.id, req.child.id)) });
 });
 
+// Sinfni almashtirish: har bir sinf — alohida profil. Eski sinfdagi hamma narsa o‘sha profilda saqlanadi, yangi sinf noldan
+// boshlanadi, avvalgisiga qaytsangiz eski yutuqlar qaytadi. 5-sinfdan boshlab ota-ona tasdig‘i kerak emas;
+// boshlang‘ich (1–4) sinfdan o‘zgartirish ota-ona PIN-kodi bilan.
+app.post("/api/me/grade", auth, async (req, res) => {
+  const parsed = z.object({ grade: gradeSchema }).safeParse(req.body);
+  if (!parsed.success) throw bad("Sinf noto‘g‘ri");
+  if (req.child.grade != null && req.child.grade <= 4 && parsed.data.grade !== req.child.grade) {
+    assertParent(req, "Boshlang‘ich sinfdan o‘tish uchun ota-ona PIN-kodini kiriting.");
+  }
+  const childId = await switchGrade(req.child, parsed.data.grade);
+  res.json({ childId, user: await userPayload(req.user, await resolveChild(req.user.id, childId)) });
+});
+
 // --- Bola profillari ---
 app.get("/api/children", auth, async (req, res) => {
-  const list = await listChildren(req.user.id);
-  res.json({ children: list.map((c) => ({ id: c.id, name: c.name, grade: c.grade, mascot: c.mascot, level: c.level })), activeId: req.child.id });
+  const list = await listPeople(req.user.id);
+  const active = list.find((c) => c.person_id === req.child.person_id);
+  res.json({ children: list.map((c) => ({ id: c.id, name: c.name, grade: c.grade, mascot: c.mascot, level: c.level })), activeId: active?.id ?? req.child.id });
 });
 
 const childSchema = z.object({

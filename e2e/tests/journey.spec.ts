@@ -150,29 +150,69 @@ test("ota-ona bo‘limi PIN-kodsiz yopiq", async ({ page, request }) => {
   await expect(page.getByRole("heading", { name: /Ota-onalar kabineti/ })).toBeHidden();
 });
 
-test("sinfni faqat ota-ona o‘zgartira oladi", async ({ page, request }) => {
-  const { token } = await loginViaApi(page, request);
+const GRADE_WARNING = /barcha yutuqlar shu sinfda saqlanadi.*noldan boshlanadi/;
+
+test("boshlang‘ich sinfdan o‘tish: ogohlantirish va ota-ona PIN-kodi", async ({ page, request }) => {
+  const { token } = await loginViaApi(page, request); // 3-sinf
   const auth = { Authorization: `Bearer ${token}` };
   await page.goto("/profile");
-  const grade2 = page.getByRole("button", { name: "2-sinf", exact: true });
-  await expect(grade2).toBeDisabled();
-  await expect(page.getByText("Sinfni faqat ota-ona o‘zgartira oladi.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Ota-ona bo‘limiga o‘tish" })).toBeVisible(); // PIN hali yo‘q
+  await page.getByRole("button", { name: "Sinfni o‘zgartirish" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(GRADE_WARNING)).toBeVisible();
+  await expect(dialog.getByText(/ota-ona PIN-kodi kerak/)).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Ota-ona bo‘limiga o‘tish" })).toBeVisible(); // PIN hali yo‘q
+  await dialog.getByRole("radio", { name: /4-sinf/ }).click();
+  await expect(dialog.getByRole("button", { name: "Sinfga o‘tish" })).toBeDisabled(); // PIN kiritilmaguncha
 
-  // Server ham bola nomidan sinfni o‘zgartirishga yo‘l qo‘ymaydi
-  const denied = await request.patch(`${API}/api/me`, { data: { grade: 2 }, headers: auth });
-  expect(denied.status()).toBe(403);
+  // Server ham PIN-kodsiz o‘tkazmaydi
+  expect((await request.post(`${API}/api/me/grade`, { data: { grade: 4 }, headers: auth })).status()).toBe(403);
 
   await request.post(`${API}/api/parent/pin`, { data: { pin: "4321", password: "secret123" }, headers: auth });
   await page.reload();
+  await page.getByRole("button", { name: "Sinfni o‘zgartirish" }).click();
   await page.getByLabel("PIN-kod").fill("4321");
   await page.getByRole("button", { name: /Ota-ona sifatida ochish/ }).click();
-  await expect(grade2).toBeEnabled();
-  await grade2.click();
-  await page.getByRole("button", { name: "Saqlash", exact: true }).click();
-  await expect(page.getByText("✓ O‘zgarishlar saqlandi!")).toBeVisible();
-  const me = await (await request.get(`${API}/api/me`, { headers: auth })).json();
-  expect(me.user.profile.grade).toBe(2);
+  await page.getByRole("dialog").getByRole("radio", { name: /4-sinf/ }).click();
+  await page.getByRole("button", { name: "Sinfga o‘tish" }).click();
+  await page.waitForURL("**/dashboard");
+  await expect(page.getByText("4-sinf").first()).toBeVisible();
+});
+
+test("5-sinfdan boshlab sinf erkin almashadi; yutuqlar o‘z sinfida qoladi, yangi sinf noldan, qaytsa eskisi qaytadi", async ({ page, request }) => {
+  await loginViaApi(page, request, { grade: 7, subject: "algebra" });
+  await page.goto("/quiz?test=level-1");
+  await expect(page.getByText(/Savol 1 \/ 10/)).toBeVisible();
+  await playQuiz(page);
+  await expect(page.getByText("Aniqlik")).toBeVisible();
+
+  const points = async () => {
+    await page.goto("/dashboard");
+    await expect(page.locator("main:visible")).toContainText("Jami ball");
+    const card = page.locator("main:visible").getByText("Jami ball").locator("..");
+    return (await card.innerText()).split("\n")[0];
+  };
+  const at7 = await points();
+  expect(Number(at7)).toBeGreaterThan(0);
+
+  // 8-sinfga o‘tish: ota-ona PIN-kodi so‘ralmaydi, ogohlantirish ko‘rsatiladi
+  await page.goto("/profile");
+  await page.getByRole("button", { name: "Sinfni o‘zgartirish" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(GRADE_WARNING)).toBeVisible();
+  await expect(dialog.getByLabel("PIN-kod")).toHaveCount(0);
+  await dialog.getByRole("radio", { name: /8-sinf/ }).click();
+  await dialog.getByRole("button", { name: "Sinfga o‘tish" }).click();
+  await page.waitForURL("**/dashboard");
+  await expect(page.getByText("8-sinf").first()).toBeVisible();
+  expect(await points()).toBe("0"); // yangi sinf noldan
+
+  // 7-sinfga qaytish: yutuqlar o‘z joyida
+  await page.goto("/profile");
+  await page.getByRole("button", { name: "Sinfni o‘zgartirish" }).click();
+  await page.getByRole("dialog").getByRole("radio", { name: /7-sinf/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Sinfga o‘tish" }).click();
+  await page.waitForURL("**/dashboard");
+  expect(await points()).toBe(at7);
 });
 
 test("til almashtirish: ruscha va o‘zbekcha kirill, tanlov saqlanadi, aralash til yo‘q", async ({ page, request }) => {

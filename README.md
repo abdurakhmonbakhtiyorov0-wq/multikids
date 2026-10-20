@@ -67,12 +67,16 @@ Yangi migratsiya qo‘shsangiz, uni ham shu tarzda bajaring. **Har bir yangi jad
 
 ## Migratsiyalar
 
-`001_init` jadvallar · `002_adaptive` adaptiv qiyinlik · `003_tests_and_security` test katalogi, imtihon, RLS · `004_gamification` do‘kon, kun savoli, haftalik topshiriqlar · `005_parent` PIN va urinishlar cheklovi · `006_modules` sinf oralig‘i 1..12 (modullar, SAT).
+`001_init` jadvallar · `002_adaptive` adaptiv qiyinlik · `003_tests_and_security` test katalogi, imtihon, RLS · `004_gamification` do‘kon, kun savoli, haftalik topshiriqlar · `005_parent` PIN va urinishlar cheklovi · `006_modules` sinf oralig‘i 1..12 (modullar, SAT) · `007_grade_profiles` har bir sinf — alohida profil (`person_id`).
 Eski `data/db.json` dan ko‘chirish: `npm run db:import`.
 
 **Yangi modullar uchun savollar:** hisoblab yaratiladiganlari `backend/src/questions/generated-modules.js` (matematika 5–6, algebra va geometriya 7–11, SAT Math),
 qo‘lda yozilganlari `backend/src/questions/modules/<fan>.js` (daraja, savol, to‘g‘ri javob, noto‘g‘ri variantlar, izoh). Hozircha kimyo 8, biologiya 9, fizika 8,
 informatika 7, ingliz tili 7 va SAT Reading & Writing tayyor; qolganlari bosqichma-bosqich to‘ldiriladi. Savol qo‘shgach: `npm run db:seed`.
+
+**Sinf almashtirish:** har bir sinf alohida o‘yin profili (ball, daraja, yutuq, natijalar). Sinf almashtirilsa, eskisidagi hammasi o‘sha profilda qoladi,
+yangi sinf noldan boshlanadi, qaytilsa eskisi qaytadi (`POST /api/me/grade`). Ota-ona PIN-kodi faqat boshlang‘ich (1–4) sinfdan o‘tishda so‘raladi;
+5-sinfdan boshlab ota-ona tasdig‘i (ro‘yxatdan o‘tishda ham, kirishda ham) yo‘q.
 
 ## Testlar
 

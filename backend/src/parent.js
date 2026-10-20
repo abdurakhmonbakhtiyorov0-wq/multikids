@@ -49,38 +49,45 @@ export async function overview(userId, childId, locale = "uz") {
   const { rows: ch } = await pool.query("SELECT * FROM children WHERE id = $1 AND parent_id = $2", [String(childId), userId]);
   const child = ch[0];
   if (!child) throw new ApiError(404, "Bola profili topilmadi");
+  // Bitta o‘quvchining barcha sinf profillari: hisobot sinflar bo‘yicha alohida qatorlarda, lekin hammasi birga.
+  const ids = (await pool.query("SELECT id FROM children WHERE person_id = $1 AND parent_id = $2", [child.person_id, userId])).rows.map((r) => r.id);
 
   const [history, trend, bySubject, missed, activity, totals, ach] = await Promise.all([
     pool.query(
       `SELECT id, mode, test_id, subject, grade, total, correct, accuracy, points_awarded, mark, duration_sec, created_at
-         FROM results WHERE child_id = $1 ORDER BY created_at DESC LIMIT 20`,
-      [child.id],
+         FROM results WHERE child_id = ANY($1::uuid[]) ORDER BY created_at DESC LIMIT 20`,
+      [ids],
     ),
     pool.query(
-      "SELECT accuracy, created_at FROM results WHERE child_id = $1 AND mode IN ('quiz', 'exam') ORDER BY created_at DESC LIMIT 12",
-      [child.id],
+      "SELECT accuracy, created_at FROM results WHERE child_id = ANY($1::uuid[]) AND mode IN ('quiz', 'exam') ORDER BY created_at DESC LIMIT 12",
+      [ids],
     ),
     pool.query(
       `SELECT subject, grade, count(*)::int AS attempts, round(avg(accuracy))::int AS avg_accuracy, sum(duration_sec)::int AS seconds, max(created_at) AS last_at
-         FROM results WHERE child_id = $1 AND mode IN ('quiz', 'exam') GROUP BY subject, grade ORDER BY grade, subject`,
-      [child.id],
+         FROM results WHERE child_id = ANY($1::uuid[]) AND mode IN ('quiz', 'exam') GROUP BY subject, grade ORDER BY grade, subject`,
+      [ids],
     ),
     pool.query(
       `SELECT q.id, q.subject, q.prompt, s.attempts, s.wrong_count, s.mastered
          FROM question_stats s JOIN questions q ON q.id = s.question_id
-        WHERE s.child_id = $1 AND s.wrong_count >= 2 AND NOT s.mastered
+        WHERE s.child_id = ANY($1::uuid[]) AND s.wrong_count >= 2 AND NOT s.mastered
         ORDER BY s.wrong_count DESC, s.attempts DESC LIMIT 6`,
-      [child.id],
+      [ids],
     ),
-    pool.query("SELECT day, quizzes, correct, duration_sec FROM daily_activity WHERE child_id = $1 ORDER BY day DESC LIMIT 30", [child.id]),
+    pool.query(
+      `SELECT day, sum(quizzes)::int AS quizzes, sum(correct)::int AS correct, sum(duration_sec)::int AS duration_sec
+         FROM daily_activity WHERE child_id = ANY($1::uuid[]) GROUP BY day ORDER BY day DESC LIMIT 30`,
+      [ids],
+    ),
     pool.query(
       `SELECT count(*)::int AS tests, coalesce(sum(duration_sec), 0)::int AS seconds, coalesce(sum(correct), 0)::int AS correct, coalesce(sum(total), 0)::int AS answered
-         FROM results WHERE child_id = $1`,
-      [child.id],
+         FROM results WHERE child_id = ANY($1::uuid[])`,
+      [ids],
     ),
     pool.query(
-      `SELECT a.id, a.title, ca.unlocked_at FROM child_achievements ca JOIN achievements a ON a.id = ca.achievement_id WHERE ca.child_id = $1 ORDER BY ca.unlocked_at DESC`,
-      [child.id],
+      `SELECT a.id, a.title, min(ca.unlocked_at) AS unlocked_at FROM child_achievements ca JOIN achievements a ON a.id = ca.achievement_id
+        WHERE ca.child_id = ANY($1::uuid[]) GROUP BY a.id, a.title ORDER BY min(ca.unlocked_at) DESC`,
+      [ids],
     ),
   ]);
 
@@ -147,9 +154,10 @@ export async function deleteChild(userId, childId, confirmName) {
     const { rows } = await c.query("SELECT * FROM children WHERE parent_id = $1 ORDER BY created_at, id FOR UPDATE", [userId]);
     const child = rows.find((r) => r.id === String(childId));
     if (!child) throw new ApiError(404, "Bola profili topilmadi");
-    if (rows.length === 1) throw new ApiError(409, "Oxirgi profilni o‘chirib bo‘lmaydi. Kerak bo‘lsa, akkauntni o‘chiring.");
+    // O‘quvchi (barcha sinf profillari) soniga qaraymiz
+    if (new Set(rows.map((r) => r.person_id)).size === 1) throw new ApiError(409, "Oxirgi profilni o‘chirib bo‘lmaydi. Kerak bo‘lsa, akkauntni o‘chiring.");
     if (String(confirmName ?? "").trim().toLowerCase() !== child.name.trim().toLowerCase()) throw new ApiError(400, "Tasdiqlash uchun bolaning ismini aynan kiriting");
-    await c.query("DELETE FROM children WHERE id = $1", [child.id]);
+    await c.query("DELETE FROM children WHERE person_id = $1 AND parent_id = $2", [child.person_id, userId]);
   });
 }
 

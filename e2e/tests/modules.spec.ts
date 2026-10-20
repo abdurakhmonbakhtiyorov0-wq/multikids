@@ -25,7 +25,9 @@ test("o‘rta modul: qahramonsiz jiddiy ko‘rinish, 7-sinf algebra testi boshid
   await page.getByLabel("Email manzil").fill(uniqueEmail());
   await page.getByLabel("Parol", { exact: true }).fill("secret123");
   await page.getByLabel("Parolni tasdiqlang").fill("secret123");
-  await page.getByRole("checkbox").check();
+  // 5-sinfdan boshlab ota-ona tasdig‘i yo‘q: galochka o‘rniga oddiy xabar
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(page.getByText(/Ro‘yxatdan o‘tish orqali/)).toBeVisible();
   await page.getByRole("button", { name: "Ro‘yxatdan o‘tish" }).click();
   await page.waitForURL("**/onboarding");
 

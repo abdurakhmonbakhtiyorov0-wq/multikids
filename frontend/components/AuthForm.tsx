@@ -23,7 +23,8 @@ const registerSchema = z
     email: z.string().trim().email("Email manzilni to‘g‘ri kiriting"),
     password: z.string().min(6, "Parol kamida 6 belgidan iborat bo‘lsin"),
     confirm: z.string(),
-    consent: z.literal("on", { error: "Davom etish uchun ota-ona roziligi kerak" }),
+    // Ota-ona roziligi faqat boshlang‘ich modulda (1–4-sinf) so‘raladi; tekshiruv onSubmit ichida.
+    consent: z.string().optional(),
   })
   .refine((d) => d.password === d.confirm, { message: "Parollar bir xil emas", path: ["confirm"] });
 
@@ -37,6 +38,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [success, setSuccess] = useState(false);
   const { setModule } = useModule();
   const [chosen, setChosen] = useState<ModuleId | null>(null);
+  // 1–4-sinf (yoki modul tanlanmagan): bola nomidan ota-ona rozilik beradi. 5-sinfdan SAT gacha: foydalanuvchining o‘zi,
+  // ota-ona tasdig‘i so‘ralmaydi; ro‘yxatdan o‘tish Maxfiylik siyosatiga rozilik hisoblanadi.
+  const needsParent = chosen === null || chosen === "junior";
 
   useEffect(() => {
     if (!loading && user && !busy) router.replace(nextStepFor(user));
@@ -57,9 +61,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.currentTarget));
     const parsed = (mode === "login" ? loginSchema : registerSchema).safeParse(data);
-    if (!parsed.success) {
-      const errs: Record<string, string> = {};
-      for (const i of parsed.error.issues) errs[String(i.path[0])] ??= t(i.message);
+    const errs: Record<string, string> = {};
+    if (!parsed.success) for (const i of parsed.error.issues) errs[String(i.path[0])] ??= t(i.message);
+    if (mode === "register" && needsParent && data.consent !== "on") errs.consent = t("Davom etish uchun ota-ona roziligi kerak");
+    if (!parsed.success || Object.keys(errs).length) {
       setErrors(errs);
       return;
     }
@@ -109,7 +114,16 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               <Field label={t("Email manzil")} name="email" type="email" autoComplete="email" placeholder={t("ota-ona@email.uz")} error={errors.email} />
               <Field label={t("Parol")} name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} error={errors.password} />
               {mode === "register" && <Field label={t("Parolni tasdiqlang")} name="confirm" type="password" autoComplete="new-password" error={errors.confirm} />}
-              {mode === "register" && (
+              {mode === "register" && !needsParent && (
+                <p className="text-sm font-semibold text-slate-600">
+                  {t("Ro‘yxatdan o‘tish orqali")}{" "}
+                  <Link href="/privacy" target="_blank" className="text-blue-700 underline">
+                    {t("Maxfiylik siyosati")}
+                  </Link>
+                  {t("ga rozilik bildirasiz.")}
+                </p>
+              )}
+              {mode === "register" && needsParent && (
                 <div>
                   <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-slate-700">
                     <input type="checkbox" name="consent" className="mt-1 h-5 w-5 shrink-0 accent-blue-600" aria-invalid={!!errors.consent} />

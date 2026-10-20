@@ -80,23 +80,23 @@ test("maxsus modul (SAT): ikkita fan, test va imtihon rejimi ishlaydi", async ()
   assert.ok([2, 3, 4, 5].includes(done.result.mark));
 });
 
-test("sinf almashganda eski fan yangi sinfda yo‘q bo‘lsa, birinchi mavjud fan tanlanadi (ota-ona PIN bilan)", async () => {
+test("sinf almashganda yangi sinfda fan mavjud bo‘lmasa, tayyor fan tanlanadi", async () => {
   const { token } = await t.signup("sw", { grade: 7, subject: "algebra" });
-  const parent = await t.parentToken(token);
-  const r = await t.call("PATCH", "/api/me", { token, parent, body: { grade: 12 } });
-  assert.equal(r.status, 200);
+  const r = await t.call("POST", "/api/me/grade", { token, body: { grade: 12 } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.user.profile.grade, 12);
   assert.equal(r.body.user.profile.subject, "sat-math");
   assert.equal(r.body.user.profile.module, "special");
 
-  const back = await t.call("PATCH", "/api/me", { token, parent, body: { grade: 2 } });
+  const back = await t.call("POST", "/api/me/grade", { token, child: r.body.childId, body: { grade: 2 } });
+  assert.equal(back.status, 200);
   assert.equal(back.body.user.profile.subject, "mathematics");
   assert.equal(back.body.user.profile.module, "junior");
 });
 
-test("yuqori sinf tanlovi: 13-sinf yoki yo‘q sinf rad etiladi", async () => {
+test("noto‘g‘ri sinf (13 yoki 0) rad etiladi", async () => {
   const { token } = await t.signup("g13", { grade: 5, subject: "mathematics" });
-  const parent = await t.parentToken(token);
-  assert.equal((await t.call("PATCH", "/api/me", { token, parent, body: { grade: 13 } })).status, 400);
-  assert.equal((await t.call("PATCH", "/api/me", { token, parent, body: { grade: 0 } })).status, 400);
+  assert.equal((await t.call("POST", "/api/me/grade", { token, body: { grade: 13 } })).status, 400);
+  assert.equal((await t.call("POST", "/api/me/grade", { token, body: { grade: 0 } })).status, 400);
+  assert.equal((await t.call("PATCH", "/api/me", { token, body: { grade: 13 } })).status, 400);
 });
