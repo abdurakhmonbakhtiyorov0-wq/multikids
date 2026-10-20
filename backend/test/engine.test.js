@@ -4,21 +4,43 @@ import {
   arrangeOptions, rampDifficulty, targetDifficulty, adapt, replay, levelForXp, levelBounds, nextStreak, dayInZone, REWARD_SEQUENCE,
 } from "../src/quizEngine.js";
 import { collectQuestions, validateQuestion } from "../scripts/seed.js";
-import { SUBJECTS, GRADES } from "../src/questions/index.js";
+import { MODULES, subjectsForGrade, isOffered, READY_MIN_QUESTIONS } from "../src/curriculum.js";
 
-test("savollar banki: har bir sinf-fan juftligida kamida 20 ta, hammasi yaroqli", () => {
+test("savollar banki: hammasi yaroqli, ID lar takrorlanmaydi, boshlang‘ich modulda har bir sinf-fanda kamida 20 ta", () => {
   const all = collectQuestions();
   const ids = new Set();
   for (const q of all) {
     assert.equal(validateQuestion(q), null, q.id);
     assert.ok(!ids.has(q.id), `takroriy ID ${q.id}`);
+    assert.ok(isOffered(q.grade, q.subject), `${q.id}: ${q.grade}-sinfda ${q.subject} fani yo‘q`);
     ids.add(q.id);
   }
-  for (const s of SUBJECTS)
-    for (const g of GRADES) {
+  for (const g of MODULES.find((m) => m.id === "junior").grades)
+    for (const s of subjectsForGrade(g)) {
       const n = all.filter((q) => q.subject === s && q.grade === g).length;
       assert.ok(n >= 20, `${s} ${g}-sinf: ${n}`);
     }
+});
+
+test("yangi modullarda tayyor fanlarda har bir qiyinlik darajasida yetarli savol bor", () => {
+  const all = collectQuestions();
+  const ready = new Map();
+  for (const q of all) {
+    const key = `${q.subject}:${q.grade}`;
+    ready.set(key, [...(ready.get(key) ?? []), q.difficulty]);
+  }
+  const pairs = [["mathematics", 5], ["mathematics", 6], ["algebra", 7], ["algebra", 11], ["geometry", 7], ["geometry", 11], ["chemistry", 8], ["biology", 9], ["physics", 8], ["informatics", 7], ["english", 7], ["sat-math", 12], ["sat-reading", 12]];
+  for (const [s, g] of pairs) {
+    const d = ready.get(`${s}:${g}`) ?? [];
+    assert.ok(d.length >= READY_MIN_QUESTIONS, `${s} ${g}: ${d.length}`);
+    for (const lv of [1, 2, 3]) assert.ok(d.filter((x) => x === lv).length >= 8, `${s} ${g}: ${lv}-daraja`);
+  }
+});
+
+test("hisoblab yaratilgan 5–12-sinf savollarida to‘g‘ri javob variantlar orasida yagona", () => {
+  for (const q of collectQuestions().filter((x) => x.id.includes("-gen-") && x.grade >= 5)) {
+    assert.equal(q.options.filter((o) => o === q.options[q.correctIndex]).length, 1, q.id);
+  }
 });
 
 test("generatsiya qilingan matematika savollarining javoblari hisob bo‘yicha to‘g‘ri", () => {
@@ -100,4 +122,22 @@ test("kun vaqt mintaqasi bo‘yicha hisoblanadi", () => {
   assert.equal(dayInZone(d, "UTC"), "2026-10-19");
   assert.equal(dayInZone(d, "Asia/Tashkent"), "2026-10-20");
   assert.equal(dayInZone(d, "Nope/Nowhere"), "2026-10-19");
+});
+
+import { IMAGE_SPECS, ITEM_UZ } from "../src/questions/images.js";
+import { renderSvg } from "../scripts/make-images.js";
+
+test("rasmli savollar: javob rasmdagi buyumlar soniga mos, variantlar takrorlanmaydi, alt javobni oshkor qilmaydi", () => {
+  for (const spec of IMAGE_SPECS) {
+    const options = [spec.correct, ...spec.wrong];
+    assert.equal(new Set(options).size, options.length, spec.id);
+    assert.ok(options.length >= 3, spec.id);
+    const m = spec.prompt.match(/^Rasmda nechta (\S+) bor\?$/);
+    if (m) {
+      const shape = Object.entries(ITEM_UZ).find(([, uz]) => uz === m[1])[0];
+      assert.equal(String(spec.items.filter((i) => i.shape === shape).length), spec.correct, spec.id);
+    }
+    assert.ok(!spec.alt.includes(spec.correct), `alt matni javobni aytib qo‘ymasin: ${spec.id}`);
+    assert.match(renderSvg(spec), /^<svg /);
+  }
 });
