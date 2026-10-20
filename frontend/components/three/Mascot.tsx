@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { CHARACTER_BY_ID, type Character, type MascotId, type RewardId } from "@/lib/data";
 import { BallReward, CapReward, ClothingReward, CrownReward, GlassesReward, RewardSlot, TrophyReward } from "./Rewards";
 import { PandaArm, PandaEyes, PandaHead, PandaLeg, PandaTorso } from "./PandaParts";
+import { GlbBoundary, GlbModel, useGlbAvailable } from "./GlbMascot";
 
 export type Mood = "idle" | "thinking" | "happy" | "sad" | "celebrating" | "wearing_rewards";
 export type Reaction = { kind: "equip" | "remove" | "celebrate" | "none"; item?: RewardId | null; nonce: number };
@@ -21,7 +22,21 @@ function Mat({ color, ...rest }: { color: string } & Partial<THREE.MeshStandardM
   return <meshStandardMaterial color={color} roughness={0.55} metalness={0.02} {...rest} />;
 }
 
-export function Mascot({ id, mood, equipped, reaction, reducedMotion }: MascotProps) {
+/** Tayyor model (public/models/<id>.glb) bo‘lsa — shuni, bo‘lmasa yoki buzuq bo‘lsa kod bilan yasalgan qahramonni ko‘rsatadi. */
+export function Mascot(props: MascotProps) {
+  const glb = useGlbAvailable(props.id);
+  if (glb === null) return null;
+  if (!glb) return <ProceduralMascot {...props} />;
+  return (
+    <GlbBoundary fallback={<ProceduralMascot {...props} />}>
+      <Suspense fallback={null}>
+        <GlbModel {...props} />
+      </Suspense>
+    </GlbBoundary>
+  );
+}
+
+function ProceduralMascot({ id, mood, equipped, reaction, reducedMotion }: MascotProps) {
   const c = CHARACTER_BY_ID[id];
   const R = c.headR;
   const root = useRef<THREE.Group>(null);
