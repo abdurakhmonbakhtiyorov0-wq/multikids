@@ -6,7 +6,7 @@ import { pointsFor } from "./tests.js";
 
 export const QUIZ_LENGTH = 20;
 export const COMPLETION_XP = 10;
-export const MASTERY_STREAK = 3; // ketma-ket to‘g‘ri javoblar soni — xato "o‘zlashtirilgan" hisoblanadi
+export const MASTERY_STREAK = 1; // ketma-ket to‘g‘ri javoblar soni — xato "o‘zlashtirilgan" hisoblanadi (1: bitta to‘g‘ri javob xatoni ro‘yxatdan olib tashlaydi)
 export const ADAPT_UP_AFTER = 3; // ketma-ket to‘g‘ri -> qiyinroq
 export const ADAPT_DOWN_AFTER = 2; // ketma-ket noto‘g‘ri -> osonroq
 export const MAX_CHILDREN = 8;

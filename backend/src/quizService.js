@@ -457,7 +457,8 @@ export async function getProgress(child, subjects) {
   }
   return {
     grade: child.grade,
-    totalPoints: allResults.reduce((n, r) => n + r.points_awarded, 0),
+    // Jami ball = sarlavhadagi ball (balans): testlar, yutuqlar, kun savoli va haftalik vazifalar uchun berilgan hamma ball.
+    totalPoints: child.points_balance,
     balance: child.points_balance,
     xp: child.xp,
     level: child.level,

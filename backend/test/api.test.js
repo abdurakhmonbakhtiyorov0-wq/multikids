@@ -208,30 +208,32 @@ test("moslashuv: qator xatolardan keyin savollar osonlashadi, qator to‘g‘ril
   assert.equal(fin.body.result.incorrect, 6);
 });
 
-test("'Xatolar ustida ishlash': xato savollar qaytadi, 3 ta ketma-ket to‘g‘ri javobdan keyin o‘zlashtiriladi", async () => {
+test("'Xatolar ustida ishlash': xato savol qaytadi, bitta to‘g‘ri javobdan keyin ro‘yxatdan chiqadi, yangi xato faqat o‘zi qo‘shiladi", async () => {
   const { token } = await signup("mist");
   assert.equal((await start(token, { grade: 1, subject: "mathematics", mode: "mistakes" })).status, 409, "xato yo‘q bo‘lsa");
   const s = (await start(token)).body;
   const { ids } = await playAll(token, s, { wrongAt: [0] });
   assert.equal((await call("POST", `/api/quiz/${s.sessionId}/finish`, { token })).status, 200);
 
-  for (let round = 1; round <= 3; round++) {
-    const m = await start(token, { grade: 1, subject: "mathematics", mode: "mistakes" });
-    assert.equal(m.status, 200, `${round}-raund: ${JSON.stringify(m.body)}`);
-    assert.equal(m.body.total, 1);
-    assert.equal(m.body.question.id, ids[0]);
-    const r = await call("POST", `/api/quiz/${m.body.sessionId}/answer`, { token, body: { index: 0, answer: await correctIndexFor(m.body.sessionId, m.body.question) } });
-    assert.equal(r.body.correct, true);
-    assert.ok(r.body.explanation);
-    const fin = await call("POST", `/api/quiz/${m.body.sessionId}/finish`, { token });
-    assert.equal(fin.body.result.mode, "mistakes");
-    assert.equal(fin.body.result.score, 5);
-    if (round < 3) {
-      const { rows } = await db.pool.query("SELECT mastered, correct_streak FROM question_stats WHERE question_id = $1 AND wrong_count > 0 ORDER BY last_answered_at DESC LIMIT 1", [ids[0]]);
-      assert.equal(rows[0].mastered, false, "bitta to‘g‘ri javob xatoni o‘chirmaydi");
-    }
-  }
-  assert.equal((await start(token, { grade: 1, subject: "mathematics", mode: "mistakes" })).status, 409, "o‘zlashtirilgandan keyin ro‘yxat bo‘sh");
+  const m = await start(token, { grade: 1, subject: "mathematics", mode: "mistakes" });
+  assert.equal(m.status, 200, JSON.stringify(m.body));
+  assert.equal(m.body.total, 1);
+  assert.equal(m.body.question.id, ids[0]);
+  const r = await call("POST", `/api/quiz/${m.body.sessionId}/answer`, { token, body: { index: 0, answer: await correctIndexFor(m.body.sessionId, m.body.question) } });
+  assert.equal(r.body.correct, true);
+  assert.ok(r.body.explanation);
+  const fin = await call("POST", `/api/quiz/${m.body.sessionId}/finish`, { token });
+  assert.equal(fin.body.result.mode, "mistakes");
+  assert.equal(fin.body.result.score, 5);
+  assert.equal((await start(token, { grade: 1, subject: "mathematics", mode: "mistakes" })).status, 409, "bitta to‘g‘ri javobdan keyin ro‘yxat bo‘sh");
+
+  // Yangi test, yana bitta xato: ro‘yxatda faqat shu bitta xato (eski, tuzatilganlar qaytmaydi).
+  const s2 = (await start(token)).body;
+  await playAll(token, s2, { wrongAt: [0] });
+  assert.equal((await call("POST", `/api/quiz/${s2.sessionId}/finish`, { token })).status, 200);
+  const again = await start(token, { grade: 1, subject: "mathematics", mode: "mistakes" });
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.equal(again.body.total, 1, "faqat yangi xato");
 });
 
 test("kunlik seriya: bir kunda ikki test seriyani oshirmaydi", async () => {
