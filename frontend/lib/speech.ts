@@ -79,7 +79,8 @@ export function useSpeech(lang: string) {
       if (!supported || !voice || !canRead(prompt, options)) return;
       const russian = voice.lang.toLowerCase().startsWith("ru");
       const letters = russian ? LETTERS_RU : LETTERS_LATIN;
-      let text = `${prompt.replace(/\n/g, ". ")}. ${options.map((o, i) => `${letters[i] ?? i + 1}. ${o}.`).join(" ")}`;
+      const word = russian ? "Вариант" : voice.lang.toLowerCase().startsWith("en") ? "Option" : "Variant";
+      let text = `${prompt.replace(/\n/g, ". ")}. ${options.map((o, i) => `${word} ${letters[i] ?? i + 1}: ${o}.`).join(" ")}`;
       if (fallback) text = mathToRussian(text);
       const synth = window.speechSynthesis;
       synth.cancel();
