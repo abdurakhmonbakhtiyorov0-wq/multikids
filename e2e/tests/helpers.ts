@@ -11,13 +11,24 @@ const SUBJECT_IDS: Record<string, string> = {
   "Tabiiy fanlar": "natural-science",
   "Ingliz tili": "english",
   "Rus tili": "russian",
+  Algebra: "algebra",
+  Geometriya: "geometry",
+  Fizika: "physics",
+  Kimyo: "chemistry",
+  Biologiya: "biology",
+  Tarix: "history",
+  Geografiya: "geography",
+  Adabiyot: "literature",
+  Informatika: "informatics",
+  "SAT Math": "sat-math",
+  "SAT Reading & Writing": "sat-reading",
 };
 
 let counter = 0;
 export const uniqueEmail = (p = "e2e") => `${p}${Date.now()}${++counter}@example.com`;
 
 /** Akkaunt yaratadi (API orqali, tezroq) va sahifani shu akkauntda ochilgan holatga keltiradi. */
-export async function loginViaApi(page: Page, request: APIRequestContext, profile = { grade: 3, subject: "mathematics", mascot: "pandacha" }) {
+export async function loginViaApi(page: Page, request: APIRequestContext, profile: Record<string, unknown> = { grade: 3, subject: "mathematics", mascot: "pandacha" }) {
   const email = uniqueEmail();
   const r = await request.post(`${API}/api/auth/register`, { data: { name: "Aziz", email, password: "secret123", consent: true } });
   expect(r.ok()).toBeTruthy();
@@ -27,11 +38,14 @@ export async function loginViaApi(page: Page, request: APIRequestContext, profil
   return { email, token };
 }
 
-/** Test sahifasi sarlavhasidan ("🔢 Matematika · 3-sinf · ...") sinf va fan ID sini o‘qiydi. */
+/** Test sahifasi sarlavhasidan ("🔢 Matematika · 3-sinf · ...", "SAT Math · SAT · ...") sinf va fan ID sini o‘qiydi. */
 async function quizContext(page: Page) {
-  const line = (await page.locator("main").getByText(/-sinf ·/).first().textContent()) ?? "";
-  const grade = Number(/(\d)-sinf/.exec(line)?.[1] ?? 0);
-  const title = Object.keys(SUBJECT_IDS).find((t) => line.includes(t));
+  const line = (await page.locator("main").getByText(/(-sinf|· SAT) ·/).first().textContent()) ?? "";
+  const grade = /· SAT ·/.test(line) ? 12 : Number(/(\d+)-sinf/.exec(line)?.[1] ?? 0);
+  // Uzun nomlar oldin tekshiriladi ("SAT Reading & Writing" — "Reading" dan oldin)
+  const title = Object.keys(SUBJECT_IDS)
+    .sort((a, b) => b.length - a.length)
+    .find((t) => line.includes(t));
   return { grade, subject: title ? SUBJECT_IDS[title] : "mathematics" };
 }
 

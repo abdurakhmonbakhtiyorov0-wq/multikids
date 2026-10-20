@@ -9,6 +9,9 @@ import { motion } from "framer-motion";
 import { Alert, Button, Card, Field, Logo } from "./ui";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { nextStepFor, useAuth } from "@/lib/auth";
+import { MODULE_BY_ID, type ModuleId } from "@/lib/data";
+import { isModuleId, moduleStore } from "@/lib/module";
+import { useModule } from "@/lib/module-context";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Email manzilni to‘g‘ri kiriting"),
@@ -32,10 +35,23 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [serverError, setServerError] = useState("");
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { setModule } = useModule();
+  const [chosen, setChosen] = useState<ModuleId | null>(null);
 
   useEffect(() => {
     if (!loading && user && !busy) router.replace(nextStepFor(user));
   }, [user, loading, busy, router]);
+
+  // Bosh sahifada tanlangan modul (?module=...) eslab qolinadi va ko‘rinish shunga moslanadi.
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("module");
+    if (isModuleId(fromUrl)) {
+      moduleStore.set(fromUrl);
+      setModule(fromUrl);
+    }
+    const m = isModuleId(fromUrl) ? fromUrl : moduleStore.get();
+    queueMicrotask(() => setChosen(m));
+  }, [setModule]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -74,8 +90,18 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <Card>
           <h1 className="text-2xl font-black text-blue-950">{mode === "login" ? t("Qaytganingdan xursandmiz!") : t("Xush kelibsiz!")}</h1>
           <p className="mb-5 mt-1 text-slate-500">{mode === "login" ? t("Hisobingizga kiring") : t("Yangi hisob yarating — bu bir daqiqa oladi")}</p>
+          {mode === "register" && chosen && (
+            <p className="-mt-2 mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-blue-50 px-3 py-2 text-sm font-bold text-blue-900">
+              <span>
+                {t("Tanlangan modul:")} {t(MODULE_BY_ID[chosen].title)} ({t(MODULE_BY_ID[chosen].ages)})
+              </span>
+              <Link href="/" className="ml-auto text-blue-700 underline">
+                {t("O‘zgartirish")}
+              </Link>
+            </p>
+          )}
           {success ? (
-            <Alert tone="info">{t("🎉 Ro‘yxatdan muvaffaqiyatli o‘tdingiz! Endi qahramon tanlaymiz…")}</Alert>
+            <Alert tone="info">{chosen && chosen !== "junior" ? t("🎉 Ro‘yxatdan muvaffaqiyatli o‘tdingiz! Endi sinf va fanni tanlaymiz…") : t("🎉 Ro‘yxatdan muvaffaqiyatli o‘tdingiz! Endi qahramon tanlaymiz…")}</Alert>
           ) : (
             <form onSubmit={onSubmit} noValidate className="space-y-4">
               {serverError && <Alert>{serverError}</Alert>}

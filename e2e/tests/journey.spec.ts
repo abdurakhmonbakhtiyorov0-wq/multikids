@@ -3,7 +3,12 @@ import { API, loginViaApi, playQuiz, answerCurrent, uniqueEmail } from "./helper
 
 test("to‘liq yo‘l: ro‘yxatdan o‘tish → qahramon/sinf/fan → test → natija → saqlanish → do‘kon → ota-ona", async ({ page }) => {
   const email = uniqueEmail();
-  await page.goto("/register");
+  // Bosh sahifa: to‘rtta modul; boshlang‘ichni tanlaymiz
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 2 })).toHaveCount(4);
+  await page.getByRole("listitem").filter({ hasText: "Boshlang‘ich" }).getByRole("link", { name: /Shu modulni tanlash/ }).click();
+  await page.waitForURL("**/register?module=junior");
+  await expect(page.getByText(/Tanlangan modul:/)).toContainText("Boshlang‘ich");
   await page.getByLabel("Ismingiz").fill("Aziz");
   await page.getByLabel("Email manzil").fill(email);
   await page.getByLabel("Parol", { exact: true }).fill("secret123");

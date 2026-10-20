@@ -6,6 +6,8 @@ import { api, childStore, parentStore, tokenStore, type Profile, type Settings, 
 import { ConsentGate } from "@/components/ConsentGate";
 import { clearPwaCaches } from "@/components/PwaRegister";
 import { hasStoredLocale, useI18n } from "@/lib/i18n";
+import { useModule } from "@/lib/module-context";
+import { moduleStore } from "@/lib/module";
 
 type AuthCtx = {
   user: User | null;
@@ -23,6 +25,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { setLocale } = useI18n();
+  const { setModule } = useModule();
+
+  // Sayt ko‘rinishi modulga qarab o‘zgaradi: foydalanuvchi sinfidan; sinf hali yo‘q bo‘lsa — bosh sahifada tanlangan modul.
+  useEffect(() => {
+    if (loading) return;
+    setModule(user?.profile.module ?? moduleStore.get());
+  }, [user, loading, setModule]);
 
   // Boshqa qurilmada tanlangan til (profilda saqlangan) — shu brauzerda til tanlanmagan bo‘lsagina qo‘llanadi
   useEffect(() => {
@@ -67,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tokenStore.set(null);
     childStore.set(null);
     parentStore.set(null);
+    moduleStore.set(null);
     clearPwaCaches();
     setUser(null);
   }, []);
@@ -105,8 +115,10 @@ export function useAuth() {
 }
 
 export function nextStepFor(user: User) {
-  if (!user.profile.mascot) return "/onboarding";
-  if (!user.profile.grade || !user.profile.subject) return "/onboarding";
+  const p = user.profile;
+  if (!p.grade || !p.subject) return "/onboarding";
+  // Qahramon (3D do‘st) faqat boshlang‘ich modulda.
+  if (p.module === "junior" && !p.mascot) return "/onboarding";
   return "/dashboard";
 }
 

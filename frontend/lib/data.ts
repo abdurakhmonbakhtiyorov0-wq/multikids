@@ -1,5 +1,24 @@
-export type Grade = 1 | 2 | 3 | 4;
-export type Subject = "mathematics" | "native-language" | "reading" | "natural-science" | "english" | "russian";
+/** 1–11-sinflar va 12 = maxsus modul (SAT). Qaysi fan qaysi sinfda bor — serverda (/api/curriculum). */
+export type Grade = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+export type ModuleId = "junior" | "middle" | "senior" | "special";
+export type Subject =
+  | "mathematics"
+  | "native-language"
+  | "reading"
+  | "natural-science"
+  | "english"
+  | "russian"
+  | "algebra"
+  | "geometry"
+  | "physics"
+  | "chemistry"
+  | "biology"
+  | "history"
+  | "geography"
+  | "literature"
+  | "informatics"
+  | "sat-math"
+  | "sat-reading";
 export type MascotId =
   | "ajdarcha"
   | "pandacha"
@@ -48,20 +67,67 @@ export const CHARACTERS: Character[] = [
 
 export const CHARACTER_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c])) as Record<MascotId, Character>;
 
+/** Maxsus modul (SAT) ichkarida shu "sinf" raqami bilan saqlanadi. */
+export const SPECIAL_GRADE: Grade = 12;
+
 export const GRADES: { id: Grade; title: string; note: string; emoji: string }[] = [
   { id: 1, title: "1-sinf", note: "Harflar, sonlar va birinchi kashfiyotlar", emoji: "🌱" },
   { id: 2, title: "2-sinf", note: "Ko‘paytirish va yangi so‘zlar", emoji: "🌿" },
   { id: 3, title: "3-sinf", note: "Murakkabroq masalalar va matnlar", emoji: "🌳" },
   { id: 4, title: "4-sinf", note: "Kasrlar, adabiyot va tabiat sirlari", emoji: "🏔️" },
+  { id: 5, title: "5-sinf", note: "Matematika va tabiat fanlariga kirish", emoji: "5" },
+  { id: 6, title: "6-sinf", note: "Biologiya va fizikaning boshlanishi", emoji: "6" },
+  { id: 7, title: "7-sinf", note: "Algebra, geometriya, kimyo", emoji: "7" },
+  { id: 8, title: "8-sinf", note: "Tenglamalar, fizika va kimyo asoslari", emoji: "8" },
+  { id: 9, title: "9-sinf", note: "Progressiyalar, aylana, genetika", emoji: "9" },
+  { id: 10, title: "10-sinf", note: "Logarifm, stereometriya, organik kimyo", emoji: "10" },
+  { id: 11, title: "11-sinf", note: "Hosila, integral va yakuniy tayyorgarlik", emoji: "11" },
+  { id: 12, title: "SAT", note: "Math va Reading & Writing", emoji: "SAT" },
 ];
 
-export const SUBJECTS: { id: Subject; title: string; description: string; emoji: string; tint: string }[] = [
-  { id: "mathematics", title: "Matematika", description: "Sonlar, misollar va masalalar", emoji: "🔢", tint: "#dbeafe" },
-  { id: "native-language", title: "Ona tili", description: "Harflar, so‘zlar va gaplar", emoji: "✍️", tint: "#e0f2fe" },
-  { id: "reading", title: "O‘qish", description: "Ertaklar, she’rlar va matnlar", emoji: "📖", tint: "#e0e7ff" },
-  { id: "natural-science", title: "Tabiiy fanlar", description: "Tabiat, hayvonlar va olam", emoji: "🌍", tint: "#dcfce7" },
-  { id: "english", title: "Ingliz tili", description: "Words, colours and numbers", emoji: "🇬🇧", tint: "#fce7f3" },
-  { id: "russian", title: "Rus tili", description: "Слова, цвета и числа", emoji: "🪆", tint: "#fef3c7" },
+/** Sinf yozuvi: 12 — "SAT", qolganlari — "N-sinf". */
+export const gradeLabel = (t: (key: string, vars?: Record<string, string | number>) => string, grade: number | null | undefined) =>
+  grade === SPECIAL_GRADE ? "SAT" : t("{n}-sinf", { n: grade ?? "" });
+
+export type ModuleInfo = {
+  id: ModuleId;
+  title: string;
+  ages: string;
+  grades: Grade[];
+  tagline: string;
+  description: string;
+  /** Qahramon (3D do‘st) va o‘yin elementlari faqat boshlang‘ich modulda. */
+  playful: boolean;
+};
+
+export const MODULES: ModuleInfo[] = [
+  { id: "junior", title: "Boshlang‘ich", ages: "1–4-sinf", grades: [1, 2, 3, 4], tagline: "O‘yin orqali o‘rganamiz", description: "3D qahramon do‘st, mukofotlar va quvnoq testlar. Matematika, ona tili, o‘qish, ingliz va rus tillari.", playful: true },
+  { id: "middle", title: "O‘rta", ages: "5–8-sinf", grades: [5, 6, 7, 8], tagline: "Bilimni mustahkamlaymiz", description: "Jiddiy va ixcham interfeys. Algebra, geometriya, fizika, kimyo, biologiya, tarix va boshqa fanlar bo‘yicha testlar.", playful: false },
+  { id: "senior", title: "Yuqori", ages: "9–11-sinf", grades: [9, 10, 11], tagline: "Fan va texnologiya", description: "Zamonaviy animatsiyali muhit, ilmiy 3D vizualizatsiya. Aniq fanlar, kimyo, biologiya va yakuniy imtihonlarga tayyorgarlik.", playful: false },
+  { id: "special", title: "Maxsus", ages: "SAT tayyorgarlik", grades: [12], tagline: "Xalqaro imtihonga tayyorlanamiz", description: "SAT Math va Reading & Writing: bosqichli mashqlar va vaqtli sinov imtihoni.", playful: false },
+];
+
+export const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m])) as Record<ModuleId, ModuleInfo>;
+export const moduleOfGrade = (grade: number | null | undefined): ModuleId | null => MODULES.find((m) => m.grades.includes(grade as Grade))?.id ?? null;
+
+export const SUBJECTS: { id: Subject; title: string; description: string; emoji: string; tint: string; abbr: string }[] = [
+  { id: "mathematics", title: "Matematika", description: "Sonlar, misollar va masalalar", emoji: "🔢", tint: "#dbeafe", abbr: "Mat" },
+  { id: "native-language", title: "Ona tili", description: "Harflar, so‘zlar va gaplar", emoji: "✍️", tint: "#e0f2fe", abbr: "Ona" },
+  { id: "reading", title: "O‘qish", description: "Ertaklar, she’rlar va matnlar", emoji: "📖", tint: "#e0e7ff", abbr: "O‘q" },
+  { id: "natural-science", title: "Tabiiy fanlar", description: "Tabiat, hayvonlar va olam", emoji: "🌍", tint: "#dcfce7", abbr: "Tab" },
+  { id: "english", title: "Ingliz tili", description: "Words, colours and numbers", emoji: "🇬🇧", tint: "#fce7f3", abbr: "Eng" },
+  { id: "russian", title: "Rus tili", description: "Слова, цвета и числа", emoji: "🪆", tint: "#fef3c7", abbr: "Rus" },
+  { id: "algebra", title: "Algebra", description: "Tenglamalar, funksiyalar va progressiyalar", emoji: "➗", tint: "#dbeafe", abbr: "Alg" },
+  { id: "geometry", title: "Geometriya", description: "Shakllar, yuzalar va hajmlar", emoji: "📐", tint: "#e0f2fe", abbr: "Geo" },
+  { id: "physics", title: "Fizika", description: "Harakat, kuch, energiya va elektr", emoji: "⚛️", tint: "#ede9fe", abbr: "Fiz" },
+  { id: "chemistry", title: "Kimyo", description: "Moddalar, reaksiyalar va davriy jadval", emoji: "🧪", tint: "#dcfce7", abbr: "Kim" },
+  { id: "biology", title: "Biologiya", description: "Hujayra, organizm va ekotizim", emoji: "🧬", tint: "#d1fae5", abbr: "Bio" },
+  { id: "history", title: "Tarix", description: "O‘zbekiston va jahon tarixi", emoji: "🏛️", tint: "#fef3c7", abbr: "Tar" },
+  { id: "geography", title: "Geografiya", description: "Xaritalar, mamlakatlar va tabiat zonalari", emoji: "🗺️", tint: "#ccfbf1", abbr: "Geg" },
+  { id: "literature", title: "Adabiyot", description: "Asarlar, shoirlar va adabiy tahlil", emoji: "📚", tint: "#fce7f3", abbr: "Adb" },
+  { id: "informatics", title: "Informatika", description: "Kompyuter, algoritm va dasturlash", emoji: "💻", tint: "#e0e7ff", abbr: "Inf" },
+  { id: "sat-math", title: "SAT Math", description: "Algebra, ma’lumotlar tahlili va geometriya", emoji: "➕", tint: "#dbeafe", abbr: "SAT M" },
+  { id: "sat-reading", title: "SAT Reading & Writing", description: "Grammatika, lug‘at va matnni tushunish", emoji: "📝", tint: "#fef3c7", abbr: "SAT R" },
 ];
 
 export const SUBJECT_BY_ID = Object.fromEntries(SUBJECTS.map((s) => [s.id, s])) as Record<Subject, (typeof SUBJECTS)[number]>;

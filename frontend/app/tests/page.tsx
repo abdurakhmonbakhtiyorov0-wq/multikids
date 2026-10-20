@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AppHeader, Alert, Card, PageLoader, btnClass } from "@/components/ui";
-import { SUBJECT_BY_ID } from "@/lib/data";
+import { SUBJECT_BY_ID, gradeLabel } from "@/lib/data";
+import { SubjectBadge } from "@/components/SubjectBadge";
 import { api, type Progress, type TestInfo } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
 
@@ -15,7 +16,7 @@ function Stat({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-blue-100">{children}</span>;
 }
 
-function TestCard({ test }: { test: TestInfo }) {
+function TestCard({ test, kids }: { test: TestInfo; kids: boolean }) {
   const t = useT();
   const isLevel = test.kind === "level";
   const href = `/quiz?test=${test.id}`;
@@ -24,7 +25,8 @@ function TestCard({ test }: { test: TestInfo }) {
     <motion.li initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="list-none">
       <Card className={`flex flex-col gap-3 sm:flex-row sm:items-center ${test.unlocked ? "" : "opacity-70"}`}>
         <div className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-2xl font-black ${isLevel ? LEVEL_COLORS[test.order - 1] : test.kind === "exam" ? "bg-violet-100 text-violet-800" : "bg-blue-100 text-blue-800"}`} aria-hidden>
-          {test.unlocked ? (isLevel ? test.order : test.kind === "exam" ? "🎓" : "🎲") : "🔒"}
+          {/* Jiddiy modullarda emoji o‘rniga raqam/harf; yopiq test xira ko‘rinadi */}
+          {kids ? (test.unlocked ? (isLevel ? test.order : test.kind === "exam" ? "🎓" : "🎲") : "🔒") : isLevel ? test.order : test.kind === "exam" ? "E" : "M"}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-black text-blue-950">{t(test.title)}</h3>
@@ -38,7 +40,7 @@ function TestCard({ test }: { test: TestInfo }) {
             {test.attempts > 0 && <Stat>{t("🔁 {n} marta", { n: test.attempts })}</Stat>}
             {test.inProgress && <Stat>{t("⏳ {a}/{n} javob berilgan", { a: test.inProgress.answered, n: test.inProgress.total })}</Stat>}
           </div>
-          {!test.unlocked && test.lockedReason && <p className="mt-2 text-sm font-bold text-amber-700">🔒 {t(test.lockedReason)}</p>}
+          {!test.unlocked && test.lockedReason && <p className="mt-2 text-sm font-bold text-amber-700">{kids ? "🔒 " : ""}{t(test.lockedReason)}</p>}
         </div>
         {test.unlocked && test.available ? (
           <Link href={href} className={`${btnClass(test.inProgress ? "primary" : "secondary")} w-full shrink-0 sm:w-auto`}>
@@ -74,6 +76,7 @@ export default function TestsPage() {
 
   if (!user) return <PageLoader />;
   const subj = SUBJECT_BY_ID[user.profile.subject!];
+  const kids = user.profile.module === "junior";
   const levels = tests?.filter((x) => x.kind === "level") ?? [];
   const others = tests?.filter((x) => x.kind !== "level") ?? [];
 
@@ -85,8 +88,9 @@ export default function TestsPage() {
           <Link href="/dashboard" className="text-sm font-bold text-blue-700 hover:underline">
             {t("← Bosh sahifa")}
           </Link>
-          <h1 className="mt-1 text-3xl font-black text-blue-950">
-            {subj.emoji} {t(subj.title)} · {t("{n}-sinf", { n: user.profile.grade })}
+          <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-black text-blue-950">
+            <SubjectBadge subject={subj.id} kids={user.profile.module === "junior"} />
+            {t(subj.title)} · {gradeLabel(t, user.profile.grade)}
           </h1>
           <p className="text-slate-600">{t("Bosqichma-bosqich o‘tib boring: har bir keyingi bosqich oldingisini kamida 60% bilan tugatgandan keyin ochiladi.")}</p>
         </div>
@@ -102,7 +106,7 @@ export default function TestsPage() {
               </h2>
               <ul className="space-y-3 p-0">
                 {levels.map((x) => (
-                  <TestCard key={x.id} test={x} />
+                  <TestCard key={x.id} test={x} kids={kids} />
                 ))}
               </ul>
             </section>
@@ -113,13 +117,13 @@ export default function TestsPage() {
               </h2>
               <ul className="space-y-3 p-0">
                 {others.map((x) => (
-                  <TestCard key={x.id} test={x} />
+                  <TestCard key={x.id} test={x} kids={kids} />
                 ))}
                 {mistakes > 0 && (
                   <li className="list-none">
                     <Card className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-rose-100 text-2xl" aria-hidden>
-                        🛠
+                        {kids ? "🛠" : "!"}
                       </div>
                       <div className="flex-1">
                         <h3 className="text-lg font-black text-blue-950">{t("Xatolar ustida ishlash")}</h3>

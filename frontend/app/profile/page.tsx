@@ -4,7 +4,8 @@ import { useT } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { AppHeader, Alert, Button, Card, Field, PageLoader } from "@/components/ui";
 import { MascotAvatar } from "@/components/MascotAvatar";
-import { CHARACTERS, GRADES, SUBJECTS, type Grade, type MascotId, type Subject } from "@/lib/data";
+import { CHARACTERS, GRADES, type Grade, type MascotId, type Subject } from "@/lib/data";
+import { useCurriculum } from "@/lib/curriculum";
 import { useAuth, useRequireUser } from "@/lib/auth";
 import { api, ApiError, parentStore, type HeroInfo } from "@/lib/api";
 import Link from "next/link";
@@ -84,9 +85,18 @@ function ProfileForm() {
   const [parentUnlocked, setParentUnlocked] = useState(() => parentStore.get() !== null);
   const { user, updateProfile } = useAuth();
   const [name, setName] = useState(user!.name);
-  const [mascot, setMascot] = useState<MascotId>(user!.profile.mascot!);
+  const [mascot, setMascot] = useState<MascotId | null>(user!.profile.mascot);
   const [grade, setGrade] = useState<Grade>(user!.profile.grade!);
   const [subject, setSubject] = useState<Subject>(user!.profile.subject!);
+  const junior = user!.profile.module === "junior";
+  const curriculum = useCurriculum();
+  const subjectOptions = curriculum.subjects(grade);
+  // Sinf almashganda fan sinfga mos bo‘lmasa, birinchi tayyor fan tanlanadi.
+  const pickGrade = (g: Grade) => {
+    setGrade(g);
+    const options = curriculum.subjects(g);
+    if (options.length && !options.some((o) => o.id === subject && o.ready)) setSubject((options.find((o) => o.ready) ?? options[0]).id);
+  };
   const [heroes, setHeroes] = useState<Map<string, HeroInfo>>(new Map());
   useEffect(() => {
     api<{ heroes: HeroInfo[] }>("/api/heroes")
@@ -108,7 +118,7 @@ function ProfileForm() {
     setBusy(true);
     setMsg(null);
     try {
-      await updateProfile({ name: name.trim(), mascot, grade, subject, soundEnabled: sound });
+      await updateProfile({ name: name.trim(), ...(junior && mascot ? { mascot } : {}), grade, subject, soundEnabled: sound });
       setMsg({ tone: "info", text: t("✓ O‘zgarishlar saqlandi!") });
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) setParentUnlocked(false); // ota-ona sessiyasi tugagan
@@ -128,6 +138,7 @@ function ProfileForm() {
         <Card className="space-y-6">
           <Field label={t("Ism")} name="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={30} />
           <p className="-mt-3 text-sm text-slate-500">{t("Email:")} {user!.email}</p>
+          {junior && (
           <div>
             <p className="mb-2 text-sm font-bold text-slate-700">{t("Qahramon")}</p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
@@ -147,6 +158,7 @@ function ProfileForm() {
               ))}
             </div>
           </div>
+          )}
           <InstallApp />
           <fieldset className="space-y-2">
             <legend className="mb-1 text-sm font-bold text-slate-700">{t("Ko‘rinish (shu qurilmada)")}</legend>
@@ -178,7 +190,7 @@ function ProfileForm() {
               {GRADES.map((g) => (
                 <button
                   key={g.id}
-                  onClick={() => setGrade(g.id)}
+                  onClick={() => pickGrade(g.id)}
                   aria-pressed={grade === g.id}
                   disabled={!parentUnlocked}
                   className={`${chip(grade === g.id)} disabled:cursor-not-allowed ${parentUnlocked || grade === g.id ? "" : "disabled:opacity-50"}`}
@@ -192,9 +204,10 @@ function ProfileForm() {
           <div>
             <p className="mb-2 text-sm font-bold text-slate-700">{t("Asosiy fan")}</p>
             <div className="flex flex-wrap gap-2">
-              {SUBJECTS.map((s) => (
-                <button key={s.id} onClick={() => setSubject(s.id)} aria-pressed={subject === s.id} className={chip(subject === s.id)}>
-                  {s.emoji} {s.title}
+              {subjectOptions.map(({ id, ready, meta }) => (
+                <button key={id} onClick={() => setSubject(id)} disabled={!ready} aria-pressed={subject === id} className={`${chip(subject === id)} disabled:cursor-not-allowed disabled:opacity-50`} title={ready ? undefined : t("Tez orada")}>
+                  {junior ? `${meta.emoji} ` : ""}
+                  {t(meta.title)}
                 </button>
               ))}
             </div>

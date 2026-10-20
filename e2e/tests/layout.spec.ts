@@ -28,3 +28,11 @@ test("kirgan foydalanuvchi sahifalari", async ({ page, request }) => {
   await loginViaApi(page, request);
   for (const path of AUTHED) await checkPage(page, path);
 });
+
+// O‘rta, yuqori va maxsus modullarning sahifalari ham telefon/planshetda sig‘adi va xatosiz ochiladi.
+for (const [label, profile] of [["o‘rta", { grade: 7, subject: "algebra" }], ["yuqori", { grade: 10, subject: "algebra" }], ["maxsus", { grade: 12, subject: "sat-math" }]] as const) {
+  test(`${label} modul sahifalari`, async ({ page, request }) => {
+    await loginViaApi(page, request, profile);
+    for (const path of AUTHED) await checkPage(page, path);
+  });
+}

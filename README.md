@@ -1,6 +1,16 @@
 # MultiKids
 
-1–4-sinf o‘quvchilari uchun o‘yin shaklidagi o‘quv platformasi: 3D qahramon, 6 ta fan, bosqichli testlar, magazin, ota-ona kabineti.
+1–11-sinf va SAT tayyorgarlik uchun o‘quv platformasi: bosqichli testlar, natijalar, ota-ona kabineti. To‘rt modul:
+
+| Modul | Sinflar | Muhit |
+|---|---|---|
+| Boshlang‘ich (`junior`) | 1–4 | Quvnoq, 3D qahramon do‘st, mukofotlar |
+| O‘rta (`middle`) | 5–8 | Jiddiy va ixcham, qahramonsiz, matnda emoji yo‘q |
+| Yuqori (`senior`) | 9–11 | Zamonaviy, animatsiyali, atom/DNK 3D sahnasi |
+| Maxsus (`special`) | SAT | Imtihon uslubi: SAT Math va Reading & Writing |
+
+Modul sinfdan aniqlanadi. Maxsus modul ichkarida 12-"sinf" sifatida saqlanadi. Qaysi fan qaysi sinfda bor — yagona manba `backend/src/curriculum.js`
+(frontend uni `GET /api/curriculum` orqali oladi). Savollari yetarli bo‘lmagan fan "Tez orada" deb ko‘rsatiladi.
 
 | Papka | Nima |
 |---|---|
@@ -57,13 +67,17 @@ Yangi migratsiya qo‘shsangiz, uni ham shu tarzda bajaring. **Har bir yangi jad
 
 ## Migratsiyalar
 
-`001_init` jadvallar · `002_adaptive` adaptiv qiyinlik · `003_tests_and_security` test katalogi, imtihon, RLS · `004_gamification` do‘kon, kun savoli, haftalik topshiriqlar · `005_parent` PIN va urinishlar cheklovi.
+`001_init` jadvallar · `002_adaptive` adaptiv qiyinlik · `003_tests_and_security` test katalogi, imtihon, RLS · `004_gamification` do‘kon, kun savoli, haftalik topshiriqlar · `005_parent` PIN va urinishlar cheklovi · `006_modules` sinf oralig‘i 1..12 (modullar, SAT).
 Eski `data/db.json` dan ko‘chirish: `npm run db:import`.
+
+**Yangi modullar uchun savollar:** hisoblab yaratiladiganlari `backend/src/questions/generated-modules.js` (matematika 5–6, algebra va geometriya 7–11, SAT Math),
+qo‘lda yozilganlari `backend/src/questions/modules/<fan>.js` (daraja, savol, to‘g‘ri javob, noto‘g‘ri variantlar, izoh). Hozircha kimyo 8, biologiya 9, fizika 8,
+informatika 7, ingliz tili 7 va SAT Reading & Writing tayyor; qolganlari bosqichma-bosqich to‘ldiriladi. Savol qo‘shgach: `npm run db:seed`.
 
 ## Testlar
 
 ```
-cd backend && npm test                    # 40+ test, haqiqiy PostgreSQL (embedded) ustida
+cd backend && npm test                    # 50 ta test, haqiqiy PostgreSQL (embedded) ustida
 cd frontend && npm run lint && npx tsc --noEmit && npm run build
 cd frontend && npm run i18n:check          # barcha matnlar ruscha lug‘atda bormi
 cd e2e && npm install && npm run build && npx playwright test   # haqiqiy Chrome’da (o‘rnatilgan Chrome ishlatiladi; E2E_BROWSER=bundled bo‘lsa Playwright Chromium)
@@ -82,4 +96,5 @@ cd e2e && npm install && npm run build && npx playwright test   # haqiqiy Chrome
 
 - Interfeys uch tilda (o‘zbek lotin/kirill, rus). Savollar bazasi faqat o‘zbek tilida: kirill rejimida o‘zbek tilidagi fanlar avtomatik o‘giriladi, rus rejimida savollar o‘zbekcha qoladi.
 - Offlayn rejimda test yechib bo‘lmaydi (javoblar serverda tekshiriladi); internet uzilsa, javob aloqa tiklangach qayta yuboriladi.
-- Oddiy 3D qahramonlar mavjud modellar asosida; yangi modellar qo‘shilmagan.
+- 3D qahramonlar faqat boshlang‘ich modulda. Panda uchun tayyor model (`frontend/public/models/pandacha.glb`) qo‘yish mumkin — qarang `frontend/public/models/README.md`.
+- 5–11-sinf va SAT savollari hozircha qisman: tayyor bo‘lmagan fanlar "Tez orada" ko‘rinadi.

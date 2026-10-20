@@ -7,7 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AppHeader, Alert, Button, Card, PageLoader, btnClass } from "@/components/ui";
 import { MascotView } from "@/components/MascotView";
 import type { Mood, Reaction } from "@/components/three/Mascot";
-import { REWARDS, SUBJECT_BY_ID } from "@/lib/data";
+import { REWARDS, SUBJECT_BY_ID, gradeLabel } from "@/lib/data";
+import { SubjectBadge } from "@/components/SubjectBadge";
 import { confetti, playSound } from "@/lib/effects";
 import { useOnline } from "@/lib/online";
 import { api, ApiError, type NewAchievement, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState, type TestId } from "@/lib/api";
@@ -76,12 +77,14 @@ export default function QuizPage() {
       const before = userRef.current?.child?.level ?? 1;
       const leveledUp = (r.level ?? before) > before;
       setBonus({ achievements: r.newAchievements ?? [], level: r.level, leveledUp, streak: r.streak });
+      // Konfetti faqat boshlang‘ich modulda; jiddiy modullarda faqat (yoqilgan bo‘lsa) ovoz.
+      const party = userRef.current?.profile.module === "junior";
       if (leveledUp) {
         playSound("levelup", sound);
-        confetti(2);
+        if (party) confetti(2);
       } else if (r.result.accuracy >= 60) {
         playSound("win", sound);
-        confetti(r.result.accuracy >= 90 ? 1.5 : 1);
+        if (party) confetti(r.result.accuracy >= 90 ? 1.5 : 1);
       }
       void refresh();
       setResult(r.result);
@@ -206,9 +209,10 @@ export default function QuizPage() {
 
   if (!user) return <PageLoader />;
   const subj = SUBJECT_BY_ID[user.profile.subject!];
+  const kids = user.profile.module === "junior" && !!user.profile.mascot;
   const levelNo = result?.testId?.startsWith("level-") ? Number(result.testId.slice(6)) : 0;
   const nextLevel: TestId | null = result && levelNo > 0 && levelNo < 5 && result.accuracy >= 60 ? (`level-${levelNo + 1}` as TestId) : null;
-  const mascotPanel = (
+  const mascotPanel = kids && (
     <div className="rounded-4xl bg-linear-to-b from-blue-100 via-white to-white p-2 ring-1 ring-blue-100">
       <MascotView id={user.profile.mascot!} mood={mood} equipped={result ? result.equipped : state.equipped} reaction={reaction} className="h-56 sm:h-72 lg:h-[440px]" />
       <div className="flex min-h-10 flex-wrap justify-center gap-1.5 p-2" aria-label={t("Kiyilgan mukofotlar")}>
@@ -224,8 +228,8 @@ export default function QuizPage() {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-5 px-4 py-5 lg:grid-cols-[1fr_400px]">
-        <div className="lg:order-2">{mascotPanel}</div>
+      <main className={`mx-auto grid w-full flex-1 gap-5 px-4 py-5 ${kids ? "max-w-6xl lg:grid-cols-[1fr_400px]" : "max-w-3xl"}`}>
+        {kids && <div className="lg:order-2">{mascotPanel}</div>}
         <div className="space-y-4 lg:order-1">
           {error && (
             <Alert>
@@ -240,18 +244,28 @@ export default function QuizPage() {
           {session && q && !result && (
             <>
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-slate-600">
-                <span>
-                  {subj.emoji} {t(subj.title)} · {t("{n}-sinf", { n: user.profile.grade })} · {t(session.testTitle)}
+                <span className="flex items-center gap-1.5">
+                  <SubjectBadge subject={subj.id} kids={kids} />
+                  {t(subj.title)} · {gradeLabel(t, user.profile.grade)} · {t(session.testTitle)}
                 </span>
                 <span className="flex gap-2">
                   {remaining !== null && (
                     <span className={`rounded-full px-3 py-1 ring-1 ${remaining <= 60 ? "bg-red-50 text-red-700 ring-red-200" : "bg-white ring-blue-100"}`} role="timer" aria-label={t("Qolgan vaqt")}>
-                      ⏱ {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+                      {kids ? "⏱ " : ""}
+                      {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
                     </span>
                   )}
                   <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100">{t("⭐ {n} ball", { n: state.score })}</span>
-                  <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100">✅ {state.correct}</span>
-                  {state.streak >= 2 && <span className="rounded-full bg-blue-600 px-3 py-1 text-white">🔥 {state.streak}</span>}
+                  <span className="rounded-full bg-white px-3 py-1 ring-1 ring-blue-100" title={t("To‘g‘ri javoblar")}>
+                    {kids ? "✅ " : "✓ "}
+                    {state.correct}
+                  </span>
+                  {state.streak >= 2 && (
+                    <span className="rounded-full bg-blue-600 px-3 py-1 text-white" title={t("Ketma-ket to‘g‘ri javoblar")}>
+                      {kids ? "🔥 " : `${t("Seriya")}: `}
+                      {state.streak}
+                    </span>
+                  )}
                 </span>
               </div>
               <div>
@@ -313,8 +327,8 @@ export default function QuizPage() {
                               {feedback.correct ? t("✓ To‘g‘ri javob! +{n} ball", { n: session.pointsPerCorrect }) : t("✗ Yana bir bor urinib ko‘r! Xatolardan o‘rganamiz.")}
                             </p>
                             <p className="mt-1 text-slate-700">{ct(feedback.explanation)}</p>
-                            {feedback.event.type === "equip" && <p className="mt-1 font-bold text-blue-700">{t("🎁 Yangi mukofot:")} {REWARDS[feedback.event.item].emoji} {t(REWARDS[feedback.event.item].title)}</p>}
-                            {feedback.event.type === "remove" && feedback.event.item && (
+                            {kids && feedback.event.type === "equip" && <p className="mt-1 font-bold text-blue-700">{t("🎁 Yangi mukofot:")} {REWARDS[feedback.event.item].emoji} {t(REWARDS[feedback.event.item].title)}</p>}
+                            {kids && feedback.event.type === "remove" && feedback.event.item && (
                               <p className="mt-1 font-bold text-slate-600">
                                 {REWARDS[feedback.event.item].emoji} {t("{name} vaqtincha yechildi — keyingi to‘g‘ri javob bilan qaytarasan!", { name: t(REWARDS[feedback.event.item].title) })}
                               </p>
@@ -335,7 +349,7 @@ export default function QuizPage() {
           {result && !review && (
             <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
               <Card className="text-center">
-                <p className="text-5xl">{result.accuracy >= 85 ? "🏆" : result.accuracy >= 60 ? "🌟" : "💪"}</p>
+                {kids && <p className="text-5xl">{result.accuracy >= 85 ? "🏆" : result.accuracy >= 60 ? "🌟" : "💪"}</p>}
                 {result.testTitle && <p className="mt-2 text-sm font-extrabold uppercase tracking-wide text-blue-600">{result.testTitle}</p>}
                 <h1 className="mt-1 text-3xl font-black text-blue-950">{message(result, t)}</h1>
                 {result.mark ? (
@@ -371,7 +385,7 @@ export default function QuizPage() {
                     {(bonus.streak ?? 0) > 1 && <p>{t("🔥 {n} kunlik seriya!", { n: bonus.streak ?? 0 })}</p>}
                   </div>
                 )}
-                {result.earned.length > 0 && (
+                {kids && result.earned.length > 0 && (
                   <p className="mt-4 font-bold text-slate-600">
                     {t("Yutilgan mukofotlar:")} {result.earned.map((r) => `${REWARDS[r].emoji} ${t(REWARDS[r].title)}`).join(", ")}
                   </p>
@@ -416,7 +430,10 @@ export default function QuizPage() {
                     <p className="whitespace-pre-line font-extrabold text-blue-950">{ct(a.prompt)}</p>
                     <p className="mt-2 text-red-700">{t("✗ Sening javobing:")} {ct(a.options[a.chosen])}</p>
                     <p className="text-emerald-700">{t("✓ To‘g‘ri javob:")} {ct(a.options[a.correctIndex])}</p>
-                    <p className="mt-1 text-sm text-slate-600">💡 {ct(a.explanation)}</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {kids ? "💡 " : ""}
+                      {ct(a.explanation)}
+                    </p>
                   </li>
                 ))}
               </ol>

@@ -4,7 +4,7 @@ import { useT } from "@/lib/i18n";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppHeader, Alert, Button, Card, Field, PageLoader } from "@/components/ui";
-import { SUBJECT_BY_ID, type Subject } from "@/lib/data";
+import { GRADES, SUBJECT_BY_ID, gradeLabel, type Subject } from "@/lib/data";
 import { api, ApiError, childStore, parentStore } from "@/lib/api";
 import { dateLocale, useI18n } from "@/lib/i18n";
 import { useAuth, useRequireUser } from "@/lib/auth";
@@ -149,9 +149,9 @@ function Manage({ kids, onChanged, onLocked }: { kids: Kid[]; onChanged: () => v
             </label>
             <select id="grade" name="grade" className="h-13 w-full rounded-2xl border-2 border-blue-100 bg-blue-50/40 px-3 py-3">
               <option value="">—</option>
-              {[1, 2, 3, 4].map((g) => (
-                <option key={g} value={g}>
-                  {t("{n}-sinf", { n: g })}
+              {GRADES.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {gradeLabel(t, g.id)}
                 </option>
               ))}
             </select>
@@ -306,7 +306,7 @@ function Dashboard({ onLocked }: { onLocked: () => void }) {
               className={`rounded-2xl px-4 py-2 font-extrabold ring-2 ${selected === k.id ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-blue-800 ring-blue-100 hover:ring-blue-300"}`}
             >
               {k.name}
-              {k.grade ? ` · ${t("{n}-sinf", { n: k.grade })}` : ""}
+              {k.grade ? ` · ${gradeLabel(t, k.grade)}` : ""}
             </button>
           ))}
         </div>
@@ -348,7 +348,7 @@ function Dashboard({ onLocked }: { onLocked: () => void }) {
                     {data.bySubject.map((s) => (
                       <tr key={`${s.subject}-${s.grade}`} className="border-t border-blue-50">
                         <td className="py-2 pr-3 font-bold">
-                          {SUBJECT_BY_ID[s.subject].emoji} {t(SUBJECT_BY_ID[s.subject].title)} · {t("{n}-sinf", { n: s.grade })}
+                          {SUBJECT_BY_ID[s.subject].emoji} {t(SUBJECT_BY_ID[s.subject].title)} · {gradeLabel(t, s.grade)}
                         </td>
                         <td className="py-2 pr-3">{s.attempts}</td>
                         <td className="py-2 pr-3 font-black">{s.avgAccuracy}%</td>
