@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Subject } from "./data";
-import { toCyrillic } from "./translit";
 
 // Savollarni ovoz chiqarib o‘qish (Web Speech API). Ovozlar qurilmadan olinadi.
-// O‘zbekcha ovoz ko‘p qurilmalarda yo‘q: shunda matn kirillga o‘girilib, ruscha ovoz bilan o‘qiladi (talaffuz taxminiy,
-// lekin raqamlar va misollar to‘g‘ri aytiladi). Hech qanday mos ovoz bo‘lmasa, "ovoz yo‘q" belgisi ko‘rsatiladi.
+// O‘zbekcha ovoz ko‘p qurilmalarda yo‘q, ruscha ovozda o‘zbekcha so‘zlar yomon eshitiladi — shuning uchun o‘zbekcha matn
+// faqat haqiqiy o‘zbek ovozi bilan o‘qiladi. Faqat raqam va amallardan iborat savollar (masalan "12 : 4 = ?") ruscha ovoz
+// bilan o‘qiladi, chunki ularda talaffuz muammosi yo‘q. Aks holda "ovoz yo‘q" belgisi ko‘rsatiladi.
 
 const LANG_BY_SUBJECT: Record<Subject, string> = {
   mathematics: "uz",
@@ -19,6 +19,20 @@ const LANG_BY_SUBJECT: Record<Subject, string> = {
 
 export function speechLang(subject: Subject) {
   return LANG_BY_SUBJECT[subject];
+}
+
+const LETTERS_RU = ["А", "Бэ", "Цэ", "Дэ", "Е", "Эф"];
+const LETTERS_LATIN = ["A", "B", "C", "D", "E", "F"];
+
+/** Raqamli ifodani ruscha o‘qishga tayyorlaydi: belgilar so‘zga aylanadi. */
+function mathToRussian(s: string) {
+  return s
+    .replace(/\s*[+]\s*/g, " плюс ")
+    .replace(/\s*[−–-]\s*(?=\d|\?)/g, " минус ")
+    .replace(/\s*[×*·]\s*/g, " умножить на ")
+    .replace(/\s*[÷:/]\s*/g, " разделить на ")
+    .replace(/\s*=\s*/g, " равно ")
+    .replace(/\?/g, " сколько ");
 }
 
 export function useSpeech(lang: string) {
@@ -49,13 +63,28 @@ export function useSpeech(lang: string) {
     setSpeaking(false);
   }, [supported]);
 
+  /** Bu savolni shu qurilmada yaxshi o‘qib bo‘ladimi? (ruscha zaxira ovoz faqat raqamli matn uchun) */
+  const canRead = useCallback(
+    (prompt: string, options: string[]) => {
+      if (!supported || !voice) return false;
+      if (!fallback) return true;
+      return ![prompt, ...options].some((x) => /[A-Za-z]/.test(x));
+    },
+    [supported, voice, fallback],
+  );
+
+  /** Savol va variantlarni harflari bilan o‘qiydi: "A. 13. Бэ. 14. ..." */
   const speak = useCallback(
-    (text: string) => {
-      if (!supported || !voice) return;
+    (prompt: string, options: string[]) => {
+      if (!supported || !voice || !canRead(prompt, options)) return;
+      const russian = voice.lang.toLowerCase().startsWith("ru");
+      const letters = russian ? LETTERS_RU : LETTERS_LATIN;
+      let text = `${prompt.replace(/\n/g, ". ")}. ${options.map((o, i) => `${letters[i] ?? i + 1}. ${o}.`).join(" ")}`;
+      if (fallback) text = mathToRussian(text);
       const synth = window.speechSynthesis;
       synth.cancel();
       const my = ++token.current;
-      const u = new SpeechSynthesisUtterance(fallback ? toCyrillic(text) : text);
+      const u = new SpeechSynthesisUtterance(text);
       u.voice = voice;
       u.lang = voice.lang;
       u.rate = 0.9; // kichik o‘quvchilar uchun sal sekinroq
@@ -65,8 +94,8 @@ export function useSpeech(lang: string) {
       };
       synth.speak(u);
     },
-    [supported, voice, fallback],
+    [supported, voice, fallback, canRead],
   );
 
-  return { available: supported && !!voice, supported, viaFallback: !!fallback, speaking, speak, stop };
+  return { available: supported && !!voice, canRead, speaking, speak, stop };
 }

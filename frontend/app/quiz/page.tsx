@@ -31,7 +31,7 @@ export default function QuizPage() {
   const online = useOnline();
   const [pending, setPending] = useState<number | null>(null);
   const speech = useSpeech(speechLang(user?.profile.subject ?? "mathematics"));
-  const { available: canSpeak, speak, stop } = speech;
+  const { speak, stop, canRead } = speech;
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
@@ -153,10 +153,8 @@ export default function QuizPage() {
     return () => clearTimeout(t);
   }, [remaining, result, session, finish]);
 
-  const readAloud = useCallback(
-    (question: QuizQuestion) => speak(`${question.prompt.replace(/\n/g, ". ")}. ${question.options.join(". ")}.`),
-    [speak],
-  );
+  const readAloud = useCallback((question: QuizQuestion) => speak(question.prompt, question.options), [speak]);
+  const canSpeak = !!q && canRead(q.prompt, q.options);
   const autoRead = user?.child?.voiceAutoplay ?? false;
   const currentId = q?.id;
   useEffect(() => {
@@ -291,8 +289,8 @@ export default function QuizPage() {
                         <span
                           className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-slate-100 text-2xl opacity-60 ring-2 ring-slate-200"
                           role="img"
-                          aria-label={t("Bu qurilmada o‘qish uchun ovoz topilmadi")}
-                          title={t("Bu qurilmada o‘qish uchun ovoz topilmadi")}
+                          aria-label={t("Bu savolni o‘qib bo‘lmaydi: o‘zbekcha ovoz yo‘q")}
+                          title={t("Bu savolni o‘qib bo‘lmaydi: o‘zbekcha ovoz yo‘q")}
                         >
                           🔇
                         </span>
@@ -459,8 +457,11 @@ export default function QuizPage() {
                 ))}
               </ol>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>{t("Qayta boshlash")}</Button>
-                <Link href="/dashboard" className={btnClass("secondary")}>
+                {result.mode !== "mistakes" && <Button onClick={() => start("mistakes")}>{t("Xatolar ustida ishlash")}</Button>}
+                <Button variant="secondary" onClick={() => start(targetRef.current.mode, targetRef.current.testId)}>
+                  {t("Qayta boshlash")}
+                </Button>
+                <Link href="/dashboard" className={btnClass("ghost")}>
                   {t("Bosh sahifaga qaytish")}
                 </Link>
               </div>
