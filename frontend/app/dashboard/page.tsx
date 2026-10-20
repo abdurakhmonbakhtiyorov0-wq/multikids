@@ -74,9 +74,6 @@ export default function Dashboard() {
                 <Link href="/tasks" className={btnClass("secondary")}>
                   {t("⚡ Kun savoli")}
                 </Link>
-                <Link href="/shop" className={btnClass("secondary")}>
-                  {t("🛍 Do‘kon")}
-                </Link>
               </div>
             </Card>
           )}

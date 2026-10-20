@@ -4,7 +4,7 @@ import { loginViaApi } from "./helpers";
 // Vizual tekshiruv uchun skrinshotlar (e2e/shots/, Git'ga qo‘shilmaydi): npx playwright test shots --project=desktop
 test("skrinshotlar", async ({ page, request }) => {
   await loginViaApi(page, request);
-  const pages = ["/dashboard", "/tests", "/shop", "/quiz?test=level-1", "/parent"];
+  const pages = ["/dashboard", "/tests", "/quiz?test=level-1", "/parent"];
   for (const dark of [false, true]) {
     await page.addInitScript((d) => localStorage.setItem("multikids-appearance", JSON.stringify({ theme: d ? "dark" : "light", size: "normal" })), dark);
     for (const p of pages) {

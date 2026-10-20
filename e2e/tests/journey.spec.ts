@@ -43,14 +43,6 @@ test("to‘liq yo‘l: ro‘yxatdan o‘tish → qahramon/sinf/fan → test → 
   await page.reload();
   await expect(page.getByText(/⭐ 70 ball/)).toBeVisible(); // 10 × 5 + "Birinchi qadam" (20)
 
-  // Do‘kon: sotib olish
-  await page.goto("/shop");
-  await page.getByRole("button", { name: "Sotib olish · 50" }).click();
-  await expect(page.getByText(/Kepka sotib olindi/)).toBeVisible();
-  await page.reload();
-  await expect(page.getByText("✓ Sizda bor").first()).toBeVisible();
-  await expect(page.getByText(/⭐ 40 ball/)).toBeVisible(); // 70 − 50 + 20 ("Birinchi xarid")
-
   // Ota-ona bo‘limi: PIN, statistika
   await page.goto("/parent");
   await page.getByLabel("Yangi PIN-kod").fill("1234");
@@ -131,7 +123,7 @@ test("PWA: manifest, service worker, offline sahifa va API keshlanmaydi", async 
   await context.setOffline(true);
   await page.goto("/login");
   await expect(page.getByText("Qaytganingdan xursandmiz!")).toBeVisible(); // oldin ochilgan sahifa keshdan
-  await page.goto("/album"); // hech ochilmagan sahifa
+  await page.goto("/tasks"); // hech ochilmagan sahifa
   await expect(page.getByRole("heading", { name: "Internet yo‘q" })).toBeVisible();
   await context.setOffline(false);
 

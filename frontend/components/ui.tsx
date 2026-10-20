@@ -132,8 +132,6 @@ export function AppHeader() {
     { href: "/dashboard", label: "Bosh sahifa" },
     { href: "/tests", label: "Testlar" },
     { href: "/tasks", label: "Vazifalar" },
-    { href: "/shop", label: "Do‘kon" },
-    { href: "/album", label: "Albom" },
     { href: "/progress", label: "Natijalar" },
     { href: "/profile", label: "Profil" },
     { href: "/parent", label: "Ota-onalar" },

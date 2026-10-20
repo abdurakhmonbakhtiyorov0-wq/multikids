@@ -3,7 +3,7 @@ import { loginViaApi } from "./helpers";
 
 // Telefon va planshetda: gorizontal skroll yo‘q, sahifalar xatosiz ochiladi, tugmalar barmoq uchun yetarli.
 const PUBLIC = ["/", "/login", "/register", "/forgot", "/privacy", "/offline"];
-const AUTHED = ["/dashboard", "/tests", "/shop", "/tasks", "/album", "/profile", "/progress", "/parent"];
+const AUTHED = ["/dashboard", "/tests", "/tasks", "/profile", "/progress", "/parent"];
 
 async function checkPage(page: Page, path: string) {
   const errors: string[] = [];
