@@ -23,6 +23,25 @@ function message(r: QuizResult, t: (s: string) => string) {
   return t("Yaxshi harakat! Yana bir bor urinib ko‘ramizmi?");
 }
 
+/** Faol test davomida tasodifan chiqib ketishdan himoya: oynani yopish/yangilash tasdiqlanadi, "orqaga" tugmasi sahifada qoldiradi. */
+function useLeaveGuard(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    const stay = () => window.history.pushState(null, "", window.location.href);
+    stay();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("popstate", stay);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", stay);
+    };
+  }, [active]);
+}
+
 /** AI maslahat: yo‘naltiruvchi ishora (to‘g‘ri javobsiz). Server kalit berilmagan bo‘lsa, tugma umuman ko‘rsatilmaydi. */
 function HintBox({ sessionId, index, ct }: { sessionId: string; index: number; ct: (s: string) => string }) {
   const t = useT();
@@ -95,6 +114,11 @@ export default function QuizPage() {
     moodTimer.current = setTimeout(() => setMood(after), ms);
   }, []);
   useEffect(() => () => clearTimeout(moodTimer.current), []);
+
+  // Aralash test va imtihon: tugamaguncha chiqib bo‘lmaydi (menyu yo‘q, "orqaga" va yopish so‘raladi).
+  // Hech narsa yo‘qolmaydi: sahifani yangilasangiz, test shu savoldan davom etadi; imtihon soati serverda ketaveradi.
+  const locked = !!session && !!q && !result && (session.testId === "mixed" || session.testId === "exam");
+  useLeaveGuard(locked);
 
   const targetRef = useRef<{ mode: QuizMode; testId?: TestId }>({ mode: "quiz" });
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -266,7 +290,7 @@ export default function QuizPage() {
 
   return (
     <>
-      <AppHeader />
+      <AppHeader locked={locked} />
       <main className={`mx-auto grid w-full flex-1 gap-5 px-4 py-5 ${kids ? "max-w-6xl lg:grid-cols-[1fr_400px]" : "max-w-3xl"}`}>
         {kids && <div className="lg:order-2">{mascotPanel}</div>}
         <div className="space-y-4 lg:order-1">
@@ -282,6 +306,13 @@ export default function QuizPage() {
 
           {session && q && !result && (
             <>
+              {locked && (
+                <p role="note" className="rounded-2xl bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">
+                  {session.testId === "exam"
+                    ? t("🔒 Imtihon tugamaguncha chiqib bo‘lmaydi. Vaqt davom etadi; sahifani yangilasangiz, shu savoldan davom etasiz.")
+                    : t("🔒 Aralash test tugamaguncha chiqib bo‘lmaydi. Sahifani yangilasangiz, shu savoldan davom etasiz.")}
+                </p>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold text-slate-600">
                 <span className="flex items-center gap-1.5">
                   <SubjectBadge subject={subj.id} kids={kids} />

@@ -150,7 +150,33 @@ test("ota-ona bo‘limi PIN-kodsiz yopiq", async ({ page, request }) => {
   await expect(page.getByRole("heading", { name: /Ota-onalar kabineti/ })).toBeHidden();
 });
 
-const GRADE_WARNING = /barcha yutuqlar shu sinfda saqlanadi.*noldan boshlanadi/;
+test("aralash test va imtihondan tugamasdan chiqib bo‘lmaydi; oddiy bosqichda menyu bor", async ({ page, request }) => {
+  await loginViaApi(page, request);
+  const nav = page.getByRole("link", { name: "Testlar", exact: true });
+
+  // Oddiy bosqichli test: menyu ko‘rinadi
+  await page.goto("/quiz?test=level-1");
+  await expect(page.getByText(/Savol 1 \/ 10/)).toBeVisible();
+  await expect(nav.first()).toBeVisible();
+
+  for (const [test, banner] of [["mixed", /Aralash test tugamaguncha chiqib bo‘lmaydi/], ["exam", /Imtihon tugamaguncha chiqib bo‘lmaydi/]] as const) {
+    await page.goto("/tests");
+    await page.goto(`/quiz?test=${test}`);
+    await expect(page.getByText(/Savol 1 \/ 20/)).toBeVisible();
+    await expect(page.getByText(banner)).toBeVisible();
+    // Menyu, logotip havolasi va chiqish tugmasi yo‘q
+    await expect(nav).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /MultiKids/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Chiqish" })).toHaveCount(0);
+    // "Orqaga" tugmasi testda qoldiradi
+    await page.goBack();
+    await page.waitForTimeout(500);
+    expect(page.url()).toContain(`/quiz?test=${test}`);
+    await expect(page.getByText(/Savol 1 \/ 20/)).toBeVisible();
+  }
+});
+
+const GRADE_WARNING =/barcha yutuqlar shu sinfda saqlanadi.*noldan boshlanadi/;
 
 test("boshlang‘ich sinfdan o‘tish: ogohlantirish va ota-ona PIN-kodi", async ({ page, request }) => {
   const { token } = await loginViaApi(page, request); // 3-sinf
