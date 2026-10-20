@@ -36,7 +36,6 @@ function ProfileForm() {
     saveAppearance(next);
   };
   const [sound, setSound] = useState(user!.child?.soundEnabled ?? true);
-  const [voice, setVoice] = useState(user!.child?.voiceAutoplay ?? false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "info" | "error"; text: string } | null>(null);
 
@@ -45,7 +44,7 @@ function ProfileForm() {
     setBusy(true);
     setMsg(null);
     try {
-      await updateProfile({ name: name.trim(), mascot, grade, subject, soundEnabled: sound, voiceAutoplay: voice });
+      await updateProfile({ name: name.trim(), mascot, grade, subject, soundEnabled: sound });
       setMsg({ tone: "info", text: t("✓ O‘zgarishlar saqlandi!") });
     } catch (e) {
       setMsg({ tone: "error", text: e instanceof Error ? e.message : t("Saqlab bo‘lmadi") });
@@ -102,14 +101,10 @@ function ProfileForm() {
             </div>
           </fieldset>
           <fieldset className="space-y-2">
-            <legend className="mb-1 text-sm font-bold text-slate-700">{t("Ovoz va o‘qish")}</legend>
+            <legend className="mb-1 text-sm font-bold text-slate-700">{t("Ovoz")}</legend>
             <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl bg-blue-50/60 px-4 py-2 font-bold text-slate-700">
               <input type="checkbox" className="h-5 w-5 accent-blue-600" checked={sound} onChange={(e) => setSound(e.target.checked)} />
               {t("🔊 O‘yin ovozlari")}
-            </label>
-            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl bg-blue-50/60 px-4 py-2 font-bold text-slate-700">
-              <input type="checkbox" className="h-5 w-5 accent-blue-600" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
-              {t("🗣 Savollarni o‘zi o‘qib bersin (avtomatik)")}
             </label>
           </fieldset>
           <div>

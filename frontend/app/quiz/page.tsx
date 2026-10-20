@@ -9,7 +9,6 @@ import { MascotView } from "@/components/MascotView";
 import type { Mood, Reaction } from "@/components/three/Mascot";
 import { REWARDS, SUBJECT_BY_ID } from "@/lib/data";
 import { confetti, playSound } from "@/lib/effects";
-import { speechLang, useSpeech } from "@/lib/speech";
 import { useOnline } from "@/lib/online";
 import { api, ApiError, type NewAchievement, type AnswerResult, type QuizMode, type QuizQuestion, type QuizResult, type QuizSession, type QuizState, type TestId } from "@/lib/api";
 import { useAuth, useRequireUser } from "@/lib/auth";
@@ -30,8 +29,6 @@ export default function QuizPage() {
   const ct = useContentT(user?.profile.subject);
   const online = useOnline();
   const [pending, setPending] = useState<number | null>(null);
-  const speech = useSpeech(speechLang(user?.profile.subject ?? "mathematics"));
-  const { speak, stop, canRead } = speech;
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
@@ -153,18 +150,6 @@ export default function QuizPage() {
     return () => clearTimeout(t);
   }, [remaining, result, session, finish]);
 
-  const readAloud = useCallback((question: QuizQuestion) => speak(question.prompt, question.options), [speak]);
-  const canSpeak = !!q && canRead(q.prompt, q.options);
-  const autoRead = user?.child?.voiceAutoplay ?? false;
-  const currentId = q?.id;
-  useEffect(() => {
-    if (!q) return;
-    if (autoRead && canSpeak && !result) readAloud(q);
-    return () => stop();
-    // faqat savol almashganda qayta ishga tushadi
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentId, autoRead, canSpeak]);
-
   const chooseRef = useRef<(a: number) => Promise<void>>(async () => {});
   useEffect(() => {
     if (!online || pending === null) return;
@@ -285,27 +270,6 @@ export default function QuizPage() {
                 <motion.div key={q.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}>
                   <Card>
                     <div className="flex items-start gap-3">
-                      {!canSpeak && (
-                        <span
-                          className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-slate-100 text-2xl opacity-60 ring-2 ring-slate-200"
-                          role="img"
-                          aria-label={t("Bu savolni o‘qib bo‘lmaydi: o‘zbekcha ovoz yo‘q")}
-                          title={t("Bu savolni o‘qib bo‘lmaydi: o‘zbekcha ovoz yo‘q")}
-                        >
-                          🔇
-                        </span>
-                      )}
-                      {canSpeak && (
-                        <button
-                          type="button"
-                          onClick={() => (speech.speaking ? stop() : readAloud(q))}
-                          aria-label={speech.speaking ? t("O‘qishni to‘xtatish") : t("Savolni ovoz chiqarib o‘qish")}
-                          aria-pressed={speech.speaking}
-                          className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-blue-100 text-2xl text-blue-700 ring-2 ring-blue-200 transition hover:bg-blue-200 active:scale-95"
-                        >
-                          {speech.speaking ? "⏹" : "🔊"}
-                        </button>
-                      )}
                       <h1 className="whitespace-pre-line text-xl font-extrabold leading-relaxed text-blue-950 sm:text-2xl">{ct(q.prompt)}</h1>
                     </div>
                     {q.image && (

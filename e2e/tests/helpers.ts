@@ -37,24 +37,52 @@ async function quizContext(page: Page) {
 
 /** Ko‘rinib turgan savolning to‘g‘ri javob matnini oracle'dan oladi va shu variantni (yoki ataylab xatosini) bosadi. */
 export async function answerCurrent(page: Page, { wrong = false } = {}) {
-  const h1 = page.locator("main h1").first();
-  await expect(h1).toBeVisible();
-  // Savol almashganda animatsiya paytida eski sarlavha va yangi variantlar bir lahza aralashib ko‘rinishi mumkin:
-  // sarlavha va variantlar o‘zaro mos kelgunicha (oracle tasdiqlaguncha) qayta o‘qiymiz.
+  await expect(page.locator("main h1").first()).toBeVisible();
+  // Savol almashganda eski savol animatsiya bilan chiqib ketayotgan bo‘lishi mumkin. Sarlavha va variantlarni
+  // BIR lahzada (bitta evaluate) o‘qiymiz, variantlar faol bo‘lgunicha kutamiz va tanlovni ham shu yerda belgilaymiz.
+  let info = { prompt: "", texts: [] as string[], rightIdx: -1, correct: [] as string[] };
   await expect(async () => {
-    const prompt = ((await h1.textContent()) ?? "").trim();
-    const img = await page.locator("main img[src^='/questions/']").first().getAttribute("src", { timeout: 300 }).catch(() => null);
+    const snap = await page.evaluate(() => {
+      const main = document.querySelector("main");
+      const h1 = main?.querySelector("h1");
+      const opts = [...(main?.querySelectorAll("button") ?? [])].filter((b) => /^[A-D✓✗]$/.test(b.children[0]?.textContent?.trim() ?? ""));
+      return {
+        prompt: (h1?.textContent ?? "").trim(),
+        texts: opts.map((b) => (b.textContent ?? "").trim().slice((b.children[0]?.textContent ?? "").trim().length).trim()),
+        enabled: opts.length >= 3 && opts.every((b) => !(b as HTMLButtonElement).disabled),
+        img: main?.querySelector("img[src^='/questions/']")?.getAttribute("src") ?? null,
+      };
+    });
+    expect(snap.enabled, "variantlar hali faol emas").toBeTruthy();
     const { grade, subject } = await quizContext(page);
-    const query = new URLSearchParams({ prompt, grade: String(grade), subject, ...(img ? { img } : {}) });
+    const query = new URLSearchParams({ prompt: snap.prompt, grade: String(grade), subject, ...(snap.img ? { img: snap.img } : {}) });
     const { correct } = (await (await fetch(`${ORACLE}/answer?${query}`)).json()) as { correct: string[] };
-    const options = page.locator("main button").filter({ hasText: /^[A-D]/ });
-    const count = await options.count();
-    const texts: string[] = [];
-    for (let i = 0; i < count; i++) texts.push(((await options.nth(i).textContent()) ?? "").trim().replace(/^[A-D]s*/, ""));
-    const rightIdx = texts.findIndex((t) => correct.includes(t));
-    expect(rightIdx, `to‘g‘ri variant topilmadi: ${prompt} :: ${correct} / ${texts}`).toBeGreaterThanOrEqual(0);
-    await options.nth(wrong ? (rightIdx + 1) % count : rightIdx).click({ timeout: 2000 });
+    const rightIdx = snap.texts.findIndex((x) => correct.includes(x));
+    expect(rightIdx, `to‘g‘ri variant topilmadi: ${snap.prompt} :: ${correct} / ${snap.texts}`).toBeGreaterThanOrEqual(0);
+    const pick = wrong ? (rightIdx + 1) % snap.texts.length : rightIdx;
+    // Tanlovni belgilaymiz — faqat savol hali o‘sha bo‘lsa va variantlar faol bo‘lsa
+    const marked = await page.evaluate(
+      ({ prompt, pick }) => {
+        const main = document.querySelector("main");
+        if ((main?.querySelector("h1")?.textContent ?? "").trim() !== prompt) return false;
+        const opts = [...(main?.querySelectorAll("button") ?? [])].filter((b) => /^[A-D✓✗]$/.test(b.children[0]?.textContent?.trim() ?? ""));
+        if (!opts[pick] || (opts[pick] as HTMLButtonElement).disabled) return false;
+        document.querySelectorAll("[data-e2e-pick]").forEach((e) => e.removeAttribute("data-e2e-pick"));
+        opts[pick].setAttribute("data-e2e-pick", "1");
+        return true;
+      },
+      { prompt: snap.prompt, pick },
+    );
+    expect(marked, "savol almashdi").toBeTruthy();
+    info = { prompt: snap.prompt, texts: snap.texts, rightIdx, correct };
   }).toPass({ timeout: 15_000 });
+
+  await page.locator("[data-e2e-pick]").click({ timeout: 5000 });
+  // Kutilgan natija chiqdimi? (noto‘g‘ri bo‘lsa, sababi aniq ko‘rsatiladi)
+  const verdict = page.getByText(/To‘g‘ri javob!|To‘g‘ri! |Yana bir bor urinib ko‘r/).first();
+  await expect(verdict).toBeVisible({ timeout: 10_000 });
+  const shownWrong = /Yana bir bor/.test((await verdict.textContent()) ?? "");
+  expect(shownWrong, `Kutilmagan natija: "${info.prompt}" | oracle=${JSON.stringify(info.correct)} | variantlar=${JSON.stringify(info.texts)}`).toBe(wrong);
 }
 
 /** Testni oxirigacha yechadi (wrongAt — xato javob beriladigan savol raqamlari, 0 dan). */

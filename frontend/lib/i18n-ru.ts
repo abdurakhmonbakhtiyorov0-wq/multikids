@@ -235,9 +235,6 @@ export const RU: Record<string, string> = {
   // ---- Test sahifasi ----
   "Savol {i} / {n}": "Вопрос {i} / {n}",
   "{n} ta savol qoldi": "Осталось вопросов: {n}",
-  "O‘qishni to‘xtatish": "Остановить чтение",
-  "Bu savolni o‘qib bo‘lmaydi: o‘zbekcha ovoz yo‘q": "Этот вопрос нельзя прочитать вслух: нет узбекского голоса",
-  "Savolni ovoz chiqarib o‘qish": "Прочитать вопрос вслух",
   "✓ To‘g‘ri javob! +{n} ball": "✓ Верно! +{n} б.",
   "✗ Yana bir bor urinib ko‘r! Xatolardan o‘rganamiz.": "✗ Попробуй ещё раз! Мы учимся на ошибках.",
   "🎁 Yangi mukofot:": "🎁 Новая награда:",
@@ -324,9 +321,8 @@ export const RU: Record<string, string> = {
   "Aa Katta": "Aa Крупный",
   "Aa Juda katta": "Aa Очень крупный",
   "Shrift o‘lchami": "Размер шрифта",
-  "Ovoz va o‘qish": "Звук и чтение",
+  "Ovoz": "Звук",
   "🔊 O‘yin ovozlari": "🔊 Звуки игры",
-  "🗣 Savollarni o‘zi o‘qib bersin (avtomatik)": "🗣 Читать вопросы вслух автоматически",
   "📲 Ilovani telefonga o‘rnatish": "📲 Установить приложение на телефон",
   "📲 iPhone’da o‘rnatish: Safari’da “Ulashish” tugmasini bosing va “Bosh ekranga qo‘shish”ni tanlang.": "📲 Установка на iPhone: в Safari нажмите «Поделиться» и выберите «На экран “Домой”».",
 
