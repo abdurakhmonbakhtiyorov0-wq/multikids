@@ -236,6 +236,7 @@ export const RU: Record<string, string> = {
   "Savol {i} / {n}": "Вопрос {i} / {n}",
   "{n} ta savol qoldi": "Осталось вопросов: {n}",
   "O‘qishni to‘xtatish": "Остановить чтение",
+  "Bu qurilmada o‘qish uchun ovoz topilmadi": "На этом устройстве нет голоса для чтения вслух",
   "Savolni ovoz chiqarib o‘qish": "Прочитать вопрос вслух",
   "✓ To‘g‘ri javob! +{n} ball": "✓ Верно! +{n} б.",
   "✗ Yana bir bor urinib ko‘r! Xatolardan o‘rganamiz.": "✗ Попробуй ещё раз! Мы учимся на ошибках.",

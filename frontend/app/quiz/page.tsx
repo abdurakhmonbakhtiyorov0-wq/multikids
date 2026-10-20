@@ -287,6 +287,16 @@ export default function QuizPage() {
                 <motion.div key={q.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}>
                   <Card>
                     <div className="flex items-start gap-3">
+                      {!canSpeak && (
+                        <span
+                          className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-slate-100 text-2xl opacity-60 ring-2 ring-slate-200"
+                          role="img"
+                          aria-label={t("Bu qurilmada o‘qish uchun ovoz topilmadi")}
+                          title={t("Bu qurilmada o‘qish uchun ovoz topilmadi")}
+                        >
+                          🔇
+                        </span>
+                      )}
                       {canSpeak && (
                         <button
                           type="button"

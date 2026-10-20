@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Subject } from "./data";
+import { toCyrillic } from "./translit";
 
-// Savollarni ovoz chiqarib o‘qish (Web Speech API). Ovozlar qurilmadan olinadi: o‘zbekcha ovoz ko‘p qurilmalarda yo‘q,
-// shunda tugma ko‘rsatilmaydi — ishlamaydigan tugma qoldirilmaydi.
+// Savollarni ovoz chiqarib o‘qish (Web Speech API). Ovozlar qurilmadan olinadi.
+// O‘zbekcha ovoz ko‘p qurilmalarda yo‘q: shunda matn kirillga o‘girilib, ruscha ovoz bilan o‘qiladi (talaffuz taxminiy,
+// lekin raqamlar va misollar to‘g‘ri aytiladi). Hech qanday mos ovoz bo‘lmasa, "ovoz yo‘q" belgisi ko‘rsatiladi.
 
 const LANG_BY_SUBJECT: Record<Subject, string> = {
   mathematics: "uz",
@@ -37,7 +39,9 @@ export function useSpeech(lang: string) {
     };
   }, [supported]);
 
-  const voice = voices.find((v) => v.lang.toLowerCase().startsWith(lang)) ?? null;
+  const exact = voices.find((v) => v.lang.toLowerCase().startsWith(lang)) ?? null;
+  const fallback = lang === "uz" && !exact ? (voices.find((v) => v.lang.toLowerCase().startsWith("ru")) ?? null) : null;
+  const voice = exact ?? fallback;
 
   const stop = useCallback(() => {
     token.current++;
@@ -51,7 +55,7 @@ export function useSpeech(lang: string) {
       const synth = window.speechSynthesis;
       synth.cancel();
       const my = ++token.current;
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(fallback ? toCyrillic(text) : text);
       u.voice = voice;
       u.lang = voice.lang;
       u.rate = 0.9; // kichik o‘quvchilar uchun sal sekinroq
@@ -61,8 +65,8 @@ export function useSpeech(lang: string) {
       };
       synth.speak(u);
     },
-    [supported, voice],
+    [supported, voice, fallback],
   );
 
-  return { available: supported && !!voice, speaking, speak, stop };
+  return { available: supported && !!voice, supported, viaFallback: !!fallback, speaking, speak, stop };
 }
