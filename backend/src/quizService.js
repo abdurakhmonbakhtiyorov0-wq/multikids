@@ -17,6 +17,7 @@ import {
   dayInZone,
 } from "./quizEngine.js";
 import { awardAchievement } from "./rewards.js";
+import { isOffered, subjectsForGrade } from "./curriculum.js";
 import { TESTS, TEST_BY_ID, UNLOCK_ACCURACY, levelTargetDifficulty, modeForTest, markFor } from "./tests.js";
 
 const SESSION_TTL = "24 hours";
@@ -114,6 +115,7 @@ async function assertUnlocked(c, child, grade, subject, test) {
 }
 
 export async function startQuiz(child, { grade, subject, mode = "quiz", testId }) {
+  if (!isOffered(grade, subject)) throw new ApiError(400, "Bu sinfda bunday fan yo‘q");
   const isMistakes = mode === "mistakes";
   const id = isMistakes ? "mistakes" : testId ?? (mode === "exam" ? "exam" : "mixed");
   const test = TEST_BY_ID[id];
@@ -265,7 +267,7 @@ const ACHIEVEMENT_RULES = {
   five: (m) => m.quizzes >= 5,
   perfect: (m) => m.perfect,
   streak10: (m) => m.bestAnswerStreak >= 10,
-  explorer: (m) => m.subjects >= SUBJECT_COUNT,
+  explorer: (m) => m.subjects >= m.subjectGoal,
   thousand: (m) => m.lifetimePoints >= 1000,
   week: (m) => m.dayStreak >= 7,
 };
@@ -285,6 +287,8 @@ async function evaluateAchievements(c, child, dayStreak) {
     perfect: Boolean(rows[0].perfect),
     bestAnswerStreak: rows[0].best_answer_streak,
     subjects: rows[0].subjects,
+    // "Barcha fanlar": 6 xil fandan test; sinfda fanlar kamroq bo‘lsa (masalan, SAT: 2 ta) — shuncha.
+    subjectGoal: Math.min(SUBJECT_COUNT, subjectsForGrade(child.grade).length || SUBJECT_COUNT),
     lifetimePoints: rows[0].lifetime_points,
     dayStreak,
   };
@@ -485,6 +489,7 @@ export async function getProgress(child, subjects) {
 
 /** Tanlangan sinf va fan uchun barcha testlar: holati, eng yaxshi natija, ochiqligi, davom etayotgan sessiya. */
 export async function listTests(child, { grade, subject }) {
+  if (!isOffered(grade, subject)) throw new ApiError(400, "Bu sinfda bunday fan yo‘q");
   const [pool_, stats, active] = await Promise.all([
     pool.query("SELECT difficulty, count(*)::int AS n FROM questions WHERE active AND grade = $1 AND subject = $2 GROUP BY difficulty", [grade, subject]),
     pool.query(

@@ -14,6 +14,7 @@ import { limit, reset as resetLimit } from "./rateLimit.js";
 import { hasConsent, recordConsent, pinStatus, setPin, checkPin, overview, deleteChild, deleteAccount, requestPasswordReset, resetPassword } from "./parent.js";
 import { listShop, buyItem, equipItem, getDaily, answerDaily, getWeekly, claimWeekly, listHeroes, assertHeroUnlocked } from "./gamification.js";
 import { SUBJECTS, GRADES } from "./questions/index.js";
+import { MODULES, ALL_GRADES, subjectsForGrade, isOffered, READY_MIN_QUESTIONS } from "./curriculum.js";
 
 const PORT = Number(process.env.PORT) || 4000;
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:3000,https://multikids-q7zt.vercel.app").split(",").map((s) => s.trim());
@@ -154,10 +155,13 @@ app.post("/api/auth/reset", rateLimit("reset", 10, 3600), async (req, res) => {
 // --- Profil ---
 app.get("/api/me", auth, async (req, res) => res.json({ user: await userPayload(req.user, req.child) }));
 
+// Sinf: 1–11 va maxsus modul (SAT = 12). Qaysi fan qaysi sinfda bor — curriculum.js.
+const gradeSchema = z.number().int().refine((g) => ALL_GRADES.includes(g));
+
 const profileSchema = z.object({
   name: z.string().trim().min(2).max(30).optional(),
   mascot: z.enum(MASCOTS).optional(),
-  grade: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  grade: gradeSchema.optional(),
   subject: z.enum(SUBJECTS).optional(),
   locale: z.enum(["uz", "ru"]).optional(),
   soundEnabled: z.boolean().optional(),
@@ -183,6 +187,13 @@ app.patch("/api/me", auth, async (req, res) => {
   if (parsed.data.grade !== undefined && req.child.grade != null && parsed.data.grade !== req.child.grade) {
     assertParent(req, "Sinfni faqat ota-ona o‘zgartira oladi. Ota-ona PIN-kodini kiriting.");
   }
+  // Fan sinfga mos bo‘lishi kerak. Sinf almashganda eski fan yangi sinfda yo‘q bo‘lsa, birinchi mavjud fan tanlanadi.
+  const nextGrade = parsed.data.grade ?? req.child.grade;
+  if (nextGrade != null) {
+    if (parsed.data.subject && !isOffered(nextGrade, parsed.data.subject)) throw bad("Bu sinfda bunday fan yo‘q");
+    const currentSubject = parsed.data.subject ?? req.child.subject;
+    if (!parsed.data.subject && currentSubject && !isOffered(nextGrade, currentSubject)) parsed.data.subject = subjectsForGrade(nextGrade)[0];
+  }
   await updateChild(req.child.id, parsed.data);
   res.json({ user: await userPayload(req.user, await resolveChild(req.user.id, req.child.id)) });
 });
@@ -195,7 +206,7 @@ app.get("/api/children", auth, async (req, res) => {
 
 const childSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 harfdan iborat bo‘lsin").max(30),
-  grade: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  grade: gradeSchema.optional(),
   mascot: z.enum(MASCOTS).optional(),
 });
 
@@ -209,7 +220,7 @@ app.post("/api/children", auth, parentOnly, async (req, res) => {
 // --- Test ---
 const TEST_IDS = TESTS.map((t) => t.id);
 const startSchema = z.object({
-  grade: z.number().int().min(1).max(4),
+  grade: gradeSchema,
   subject: z.enum(SUBJECTS),
   mode: z.enum(["quiz", "mistakes", "exam"]).optional(),
   testId: z.enum(TEST_IDS).optional(),
@@ -300,7 +311,26 @@ app.delete("/api/parent/account", auth, parentOnly, rateLimit("delete-account", 
   res.json({ ok: true });
 });
 
-app.get("/api/progress", auth, async (req, res) => res.json(await getProgress(req.child, SUBJECTS)));
+app.get("/api/progress", auth, async (req, res) => res.json(await getProgress(req.child, subjectsForGrade(req.child.grade ?? 1))));
+
+// --- O‘quv dasturi (ochiq): modullar, sinflar, fanlar va savollar bazasi holati ---
+app.get("/api/curriculum", async (_req, res) => {
+  const { rows } = await pool.query("SELECT grade, subject, count(*)::int AS n FROM questions WHERE active GROUP BY grade, subject");
+  const count = new Map(rows.map((r) => [`${r.grade}:${r.subject}`, r.n]));
+  res.set("Cache-Control", "public, max-age=300");
+  res.json({
+    modules: MODULES.map((m) => ({
+      id: m.id,
+      grades: m.grades.map((grade) => ({
+        grade,
+        subjects: subjectsForGrade(grade).map((id) => {
+          const questions = count.get(`${grade}:${id}`) ?? 0;
+          return { id, questions, ready: questions >= READY_MIN_QUESTIONS };
+        }),
+      })),
+    })),
+  });
+});
 
 app.get("/api/health", async (_req, res) => {
   await pool.query("SELECT 1");

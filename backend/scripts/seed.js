@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { pool } from "../src/db.js";
 import { allBanks } from "../src/questions/index.js";
 import { generatedMathQuestions } from "../src/questions/generated-math.js";
+import { generatedModuleQuestions } from "../src/questions/generated-modules.js";
 import { IMAGE_SPECS } from "../src/questions/images.js";
 
 const LEVEL = { easy: 1, medium: 2, hard: 3 };
@@ -37,7 +38,7 @@ export function collectQuestions() {
     imagePath: `/questions/${q.id}.svg`,
     imageAlt: q.alt,
   }));
-  return [...fixed, ...generatedMathQuestions(), ...images];
+  return [...fixed, ...generatedMathQuestions(), ...generatedModuleQuestions(), ...images];
 }
 
 export function validateQuestion(q) {

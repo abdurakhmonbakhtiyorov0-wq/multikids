@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { pool, tx } from "./db.js";
 import { ApiError } from "./errors.js";
 import { MAX_CHILDREN, levelBounds, levelTitle } from "./quizEngine.js";
+import { moduleOfGrade } from "./curriculum.js";
 
 // Bola qatori + kiyilgan buyumlar ro‘yxati.
 const CHILD_SELECT = `SELECT c.*, coalesce((SELECT array_agg(ci.item_id ORDER BY ci.item_id) FROM child_items ci WHERE ci.child_id = c.id AND ci.equipped), '{}') AS equipped_items FROM children c`;
@@ -91,7 +92,7 @@ export function publicUser(user, child) {
     id: user.id,
     name: child.name,
     email: user.email,
-    profile: { mascot: child.mascot, grade: child.grade, subject: child.subject },
+    profile: { mascot: child.mascot, grade: child.grade, subject: child.subject, module: child.grade ? moduleOfGrade(child.grade) : null },
     createdAt: user.created_at.toISOString(),
     child: {
       id: child.id,
