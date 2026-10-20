@@ -308,6 +308,7 @@ export const RU: Record<string, string> = {
   "Mening natijalarim": "Мои результаты",
   "eng yaxshi: {score} · {acc}%": "лучший: {score} · {acc}%",
   "hali yo‘q": "пока нет",
+  "Statistika va natijalar: {n}-sinf bo‘yicha. Ball, daraja va yutuqlar umumiy.": "Статистика и результаты — по {n} классу. Баллы, уровень и достижения общие.",
 
   // ---- Profil ----
   "Profil sozlamalari": "Настройки профиля",

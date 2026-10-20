@@ -91,6 +91,7 @@ export type HeroInfo = { id: MascotId; unlocked: boolean; requirement: string | 
 export type Settings = { name?: string; locale?: "uz" | "ru"; soundEnabled?: boolean; voiceAutoplay?: boolean; timezone?: string };
 
 export type Progress = {
+  grade?: number | null;
   totalPoints: number;
   quizzes: number;
   totalCorrect: number;

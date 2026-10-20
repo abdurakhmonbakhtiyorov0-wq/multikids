@@ -13,7 +13,7 @@ type Overview = {
   child: { id: string; name: string; grade: number | null; subject: string | null; level: number; xp: number; balance: number; streak: number; bestStreak: number };
   totals: { tests: number; minutes: number; accuracy: number | null; activeDaysLast30: number };
   trend: number[];
-  bySubject: { subject: Subject; attempts: number; avgAccuracy: number; minutes: number; lastAt: string; reliable: boolean }[];
+  bySubject: { subject: Subject; grade: number; attempts: number; avgAccuracy: number; minutes: number; lastAt: string; reliable: boolean }[];
   missedQuestions: { id: string; subject: Subject; prompt: string; attempts: number; wrong: number }[];
   history: { id: string; date: string; subject: Subject; grade: number; title: string; accuracy: number; correct: number; total: number; score: number; maxScore: number; mark: number | null; minutes: number }[];
   achievements: { id: string; title: string; unlockedAt: string }[];
@@ -346,9 +346,9 @@ function Dashboard({ onLocked }: { onLocked: () => void }) {
                   </thead>
                   <tbody>
                     {data.bySubject.map((s) => (
-                      <tr key={s.subject} className="border-t border-blue-50">
+                      <tr key={`${s.subject}-${s.grade}`} className="border-t border-blue-50">
                         <td className="py-2 pr-3 font-bold">
-                          {SUBJECT_BY_ID[s.subject].emoji} {t(SUBJECT_BY_ID[s.subject].title)}
+                          {SUBJECT_BY_ID[s.subject].emoji} {t(SUBJECT_BY_ID[s.subject].title)} · {t("{n}-sinf", { n: s.grade })}
                         </td>
                         <td className="py-2 pr-3">{s.attempts}</td>
                         <td className="py-2 pr-3 font-black">{s.avgAccuracy}%</td>

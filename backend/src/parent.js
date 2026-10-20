@@ -61,8 +61,8 @@ export async function overview(userId, childId, locale = "uz") {
       [child.id],
     ),
     pool.query(
-      `SELECT subject, count(*)::int AS attempts, round(avg(accuracy))::int AS avg_accuracy, sum(duration_sec)::int AS seconds, max(created_at) AS last_at
-         FROM results WHERE child_id = $1 AND mode IN ('quiz', 'exam') GROUP BY subject ORDER BY subject`,
+      `SELECT subject, grade, count(*)::int AS attempts, round(avg(accuracy))::int AS avg_accuracy, sum(duration_sec)::int AS seconds, max(created_at) AS last_at
+         FROM results WHERE child_id = $1 AND mode IN ('quiz', 'exam') GROUP BY subject, grade ORDER BY grade, subject`,
       [child.id],
     ),
     pool.query(
@@ -108,6 +108,7 @@ export async function overview(userId, childId, locale = "uz") {
     trend: trend.rows.map((r) => r.accuracy).reverse(),
     bySubject: bySubject.rows.map((r) => ({
       subject: r.subject,
+      grade: r.grade,
       attempts: r.attempts,
       avgAccuracy: r.avg_accuracy,
       minutes: Math.round(r.seconds / 60),

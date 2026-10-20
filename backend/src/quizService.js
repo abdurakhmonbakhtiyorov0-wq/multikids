@@ -423,22 +423,27 @@ export async function getResult(child, resultId) {
   return tx((c) => resultView(c, rows[0], child));
 }
 
+/**
+ * Progress. Statistika va natijalar TANLANGAN SINF bo‘yicha (boshqa sinf natijalari aralashmaydi);
+ * ball, daraja, yutuqlar va seriya esa umumiy (o‘yin yutuqlari sinfga bog‘liq emas).
+ */
 export async function getProgress(child, subjects) {
-  const [{ rows: results }, { rows: unlocked }, { rows: catalog }, { rows: today }, { rows: mistakes }, { rows: fresh }] = await Promise.all([
+  const [{ rows: allResults }, { rows: unlocked }, { rows: catalog }, { rows: today }, { rows: mistakes }, { rows: fresh }] = await Promise.all([
     pool.query("SELECT * FROM results WHERE child_id = $1 ORDER BY created_at", [child.id]),
     pool.query("SELECT achievement_id FROM child_achievements WHERE child_id = $1", [child.id]),
     pool.query("SELECT id, title, description FROM achievements ORDER BY reward_points, id"),
     pool.query("SELECT quizzes, goal_met FROM daily_activity WHERE child_id = $1 AND day = $2", [child.id, dayInZone(new Date(), child.timezone)]),
-    pool.query("SELECT subject, count(*)::int AS n FROM question_stats s JOIN questions q ON q.id = s.question_id WHERE s.child_id = $1 AND s.wrong_count > 0 AND NOT s.mastered GROUP BY subject", [child.id]),
+    pool.query("SELECT subject, count(*)::int AS n FROM question_stats s JOIN questions q ON q.id = s.question_id WHERE s.child_id = $1 AND s.wrong_count > 0 AND NOT s.mastered AND ($2::int IS NULL OR q.grade = $2) GROUP BY subject", [child.id, child.grade ?? null]),
     pool.query("SELECT r.id, a.is_correct FROM results r JOIN quiz_answers a ON a.session_id = r.session_id WHERE r.child_id = $1 ORDER BY r.created_at, a.position", [child.id]),
   ]);
   const unlockedIds = new Set(unlocked.map((u) => u.achievement_id));
+  const results = child.grade ? allResults.filter((r) => r.grade === child.grade) : allResults;
   const quizzes = results.filter((r) => r.mode === "quiz");
 
   const byResult = new Map();
   for (const a of fresh) (byResult.get(a.id) ?? byResult.set(a.id, []).get(a.id)).push({ isCorrect: a.is_correct });
   const earnedSet = new Set();
-  for (const answers of byResult.values()) replay(answers).earned.forEach((e) => earnedSet.add(e));
+  for (const r of results) replay(byResult.get(r.id) ?? []).earned.forEach((e) => earnedSet.add(e)); // faqat tanlangan sinf natijalari
 
   const bySubject = {};
   for (const subject of subjects) {
@@ -451,7 +456,8 @@ export async function getProgress(child, subjects) {
     };
   }
   return {
-    totalPoints: results.reduce((n, r) => n + r.points_awarded, 0),
+    grade: child.grade,
+    totalPoints: allResults.reduce((n, r) => n + r.points_awarded, 0),
     balance: child.points_balance,
     xp: child.xp,
     level: child.level,

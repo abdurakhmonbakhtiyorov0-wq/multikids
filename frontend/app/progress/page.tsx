@@ -43,6 +43,7 @@ export default function ProgressPage() {
                 </Card>
               ))}
             </div>
+            {data.grade && <p className="text-sm font-semibold text-slate-500">{t("Statistika va natijalar: {n}-sinf bo‘yicha. Ball, daraja va yutuqlar umumiy.", { n: data.grade })}</p>}
 
             <Card>
               <h2 className="mb-4 text-xl font-black text-blue-950">{t("Fanlar bo‘yicha")}</h2>
