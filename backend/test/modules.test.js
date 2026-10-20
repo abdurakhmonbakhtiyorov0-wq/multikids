@@ -20,8 +20,10 @@ test("o‘quv dasturi (ochiq): 4 modul, sinflar, fanlar va tayyorlik holati", as
   assert.equal(find(9, "biology").ready, true);
   assert.equal(find(12, "sat-math").ready, true);
   assert.equal(find(12, "sat-reading").ready, true);
-  assert.equal(find(10, "history").ready, false, "savollari yo‘q fan — tez orada");
-  assert.equal(find(10, "history").questions, 0);
+  for (const [grade, subject] of [[10, "history"], [8, "geography"], [11, "literature"], [7, "native-language"], [9, "russian"], [5, "natural-science"]]) {
+    assert.equal(find(grade, subject).ready, true, `${grade}-sinf ${subject} tayyor`);
+    assert.ok(find(grade, subject).questions >= 24);
+  }
 });
 
 test("o‘rta modul: sinf tanlangach modul aniqlanadi, fan sinfga mos bo‘lishi shart", async () => {

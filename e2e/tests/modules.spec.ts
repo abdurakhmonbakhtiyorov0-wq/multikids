@@ -38,10 +38,10 @@ test("o‘rta modul: qahramonsiz jiddiy ko‘rinish, 7-sinf algebra testi boshid
   await page.getByRole("radio", { name: /7-sinf/ }).click();
   await page.getByRole("button", { name: "Tasdiqlash" }).click();
 
-  // Fanlar sinfga mos: savollari tayyorlar tanlanadi, qolganlari "Tez orada"
-  await expect(page.getByRole("radio", { name: /Tarix/ })).toBeDisabled();
-  await expect(page.getByRole("radio", { name: /Fizika/ })).toBeEnabled(); // 7-sinf fizikasi tayyor
-  await expect(page.getByRole("radio", { name: /Geografiya/ })).toBeDisabled();
+  // Fanlar sinfga mos: hamma fanlarning savollari tayyor, boshqa sinf/modul fanlari ko‘rinmaydi
+  await expect(page.getByRole("radio", { name: /Tarix/ })).toBeEnabled();
+  await expect(page.getByRole("radio", { name: /Fizika/ })).toBeEnabled();
+  await expect(page.getByRole("radio", { name: /Geografiya/ })).toBeEnabled();
   await expect(page.getByRole("radio", { name: /O‘qish/ })).toHaveCount(0);
   await page.getByRole("radio", { name: /Algebra/ }).click();
   await page.getByRole("button", { name: "Darsni boshlash" }).click();
