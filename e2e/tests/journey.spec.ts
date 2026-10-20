@@ -145,6 +145,31 @@ test("ota-ona bo‘limi PIN-kodsiz yopiq", async ({ page, request }) => {
   await expect(page.getByRole("heading", { name: /Ota-onalar kabineti/ })).toBeHidden();
 });
 
+test("sinfni faqat ota-ona o‘zgartira oladi", async ({ page, request }) => {
+  const { token } = await loginViaApi(page, request);
+  const auth = { Authorization: `Bearer ${token}` };
+  await page.goto("/profile");
+  const grade2 = page.getByRole("button", { name: "2-sinf", exact: true });
+  await expect(grade2).toBeDisabled();
+  await expect(page.getByText("Sinfni faqat ota-ona o‘zgartira oladi.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ota-ona bo‘limiga o‘tish" })).toBeVisible(); // PIN hali yo‘q
+
+  // Server ham bola nomidan sinfni o‘zgartirishga yo‘l qo‘ymaydi
+  const denied = await request.patch(`${API}/api/me`, { data: { grade: 2 }, headers: auth });
+  expect(denied.status()).toBe(403);
+
+  await request.post(`${API}/api/parent/pin`, { data: { pin: "4321", password: "secret123" }, headers: auth });
+  await page.reload();
+  await page.getByLabel("PIN-kod").fill("4321");
+  await page.getByRole("button", { name: /Ota-ona sifatida ochish/ }).click();
+  await expect(grade2).toBeEnabled();
+  await grade2.click();
+  await page.getByRole("button", { name: "Saqlash", exact: true }).click();
+  await expect(page.getByText("✓ O‘zgarishlar saqlandi!")).toBeVisible();
+  const me = await (await request.get(`${API}/api/me`, { headers: auth })).json();
+  expect(me.user.profile.grade).toBe(2);
+});
+
 test("til almashtirish: ruscha va o‘zbekcha kirill, tanlov saqlanadi, aralash til yo‘q", async ({ page, request }) => {
   await loginViaApi(page, request);
   await page.goto("/dashboard");

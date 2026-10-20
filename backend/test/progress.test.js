@@ -25,8 +25,16 @@ test("sinf almashganda statistika va natijalar sinf bo‘yicha ajraladi, ball va
   const unlocked = g1.achievements.filter((a) => a.unlocked).map((a) => a.id);
   assert.ok(points > 0 && unlocked.includes("first"));
 
-  // 3-sinfga o‘tdi: eski sinf natijalari ko‘rinmaydi
-  assert.equal((await t.call("PATCH", "/api/me", { token, body: { grade: 3 } })).status, 200);
+  // Sinfni faqat ota-ona o‘zgartira oladi: PIN-kodsiz rad etiladi, o‘sha sinfni qayta yuborish zararsiz.
+  const denied = await t.call("PATCH", "/api/me", { token, body: { grade: 3 } });
+  assert.equal(denied.status, 403);
+  assert.match(denied.body.error, /ota-ona/i);
+  assert.equal((await t.call("PATCH", "/api/me", { token, body: { grade: 1, name: "Yangi ism" } })).status, 200, "o‘sha sinf — ruxsat");
+  assert.equal((await t.call("GET", "/api/progress", { token })).body.grade, 1, "rad etilgach sinf o‘zgarmagan");
+
+  // Ota-ona PIN orqali 3-sinfga o‘tdi: eski sinf natijalari ko‘rinmaydi
+  const parent = await t.parentToken(token);
+  assert.equal((await t.call("PATCH", "/api/me", { token, parent, body: { grade: 3 } })).status, 200);
   const g3 = (await t.call("GET", "/api/progress", { token })).body;
   assert.equal(g3.grade, 3);
   assert.equal(g3.quizzes, 0);
@@ -41,7 +49,7 @@ test("sinf almashganda statistika va natijalar sinf bo‘yicha ajraladi, ball va
   assert.equal(g3.balance, g1.balance);
 
   // 1-sinfga qaytsa — natijalar o‘z joyida
-  await t.call("PATCH", "/api/me", { token, body: { grade: 1 } });
+  await t.call("PATCH", "/api/me", { token, parent, body: { grade: 1 } });
   const back = (await t.call("GET", "/api/progress", { token })).body;
   assert.equal(back.quizzes, 1);
   assert.equal(back.recent.length, 1);
@@ -51,7 +59,7 @@ test("ota-ona hisobotida fan statistikasi sinf bo‘yicha alohida qatorlarda", a
   const { token } = await t.signup("pgrade");
   const parent = await t.parentToken(token);
   for (const grade of [1, 2]) {
-    await t.call("PATCH", "/api/me", { token, body: { grade } });
+    assert.equal((await t.call("PATCH", "/api/me", { token, parent, body: { grade } })).status, 200);
     const s = (await t.start(token, { grade, subject: "mathematics", testId: "level-1" })).body;
     await t.playAll(token, s);
     await t.finish(token, s);

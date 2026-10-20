@@ -77,9 +77,9 @@ async function requireConsent(req, _res, next) {
 }
 
 /** Ota-ona bo‘limi: PIN orqali olingan qisqa muddatli token (X-Parent-Token). */
-function parentOnly(req, _res, next) {
+function assertParent(req, missingMessage = "Ota-ona PIN-kodi kerak") {
   const token = req.headers["x-parent-token"];
-  if (!token) throw new ApiError(403, "Ota-ona PIN-kodi kerak");
+  if (!token) throw new ApiError(403, missingMessage);
   try {
     const p = jwt.verify(String(token), jwtSecret(), { algorithms: ["HS256"] });
     if (p.scope !== "parent" || p.sub !== req.user.id || p.tv !== req.user.token_version) throw new Error("scope");
@@ -87,6 +87,10 @@ function parentOnly(req, _res, next) {
     if (err instanceof ConfigError) throw err;
     throw new ApiError(403, "Ota-ona sessiyasi tugagan. PIN-kodni qayta kiriting");
   }
+}
+
+function parentOnly(req, _res, next) {
+  assertParent(req);
   next();
 }
 
@@ -175,6 +179,10 @@ app.patch("/api/me", auth, async (req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) throw bad("Ma’lumotlar noto‘g‘ri");
   await assertHeroUnlocked(req.child, parsed.data.mascot);
+  // Birinchi tanlov (ro‘yxatdan o‘tishda) erkin; tanlangan sinfni faqat ota-ona (PIN orqali) o‘zgartira oladi.
+  if (parsed.data.grade !== undefined && req.child.grade != null && parsed.data.grade !== req.child.grade) {
+    assertParent(req, "Sinfni faqat ota-ona o‘zgartira oladi. Ota-ona PIN-kodini kiriting.");
+  }
   await updateChild(req.child.id, parsed.data);
   res.json({ user: await userPayload(req.user, await resolveChild(req.user.id, req.child.id)) });
 });

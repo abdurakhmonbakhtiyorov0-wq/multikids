@@ -6,7 +6,8 @@ import { AppHeader, Alert, Button, Card, Field, PageLoader } from "@/components/
 import { MascotAvatar } from "@/components/MascotAvatar";
 import { CHARACTERS, GRADES, SUBJECTS, type Grade, type MascotId, type Subject } from "@/lib/data";
 import { useAuth, useRequireUser } from "@/lib/auth";
-import { api, type HeroInfo } from "@/lib/api";
+import { api, ApiError, parentStore, type HeroInfo } from "@/lib/api";
+import Link from "next/link";
 import { InstallApp } from "@/components/InstallApp";
 import { readAppearance, saveAppearance, type FontSize, type Theme } from "@/lib/appearance";
 
@@ -16,8 +17,71 @@ export default function ProfilePage() {
   return <ProfileForm key={user.id} />;
 }
 
+/** Sinfni faqat ota-ona o‘zgartira oladi: PIN-kod kiritilmaguncha tugmalar yopiq. */
+function GradeLock({ onUnlocked }: { onUnlocked: () => void }) {
+  const t = useT();
+  const [hasPin, setHasPin] = useState<boolean | null>(null);
+  const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api<{ hasPin: boolean }>("/api/parent/status")
+      .then((r) => setHasPin(r.hasPin))
+      .catch(() => setHasPin(null));
+  }, []);
+
+  async function unlock(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{ parentToken: string; expiresIn: number }>("/api/parent/verify", { method: "POST", body: { pin } });
+      parentStore.set(r.parentToken, r.expiresIn);
+      onUnlocked();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Xatolik yuz berdi"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-2 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">
+      <p className="font-bold">{t("🔒 Sinfni faqat ota-ona o‘zgartira oladi.")}</p>
+      {hasPin === false ? (
+        <>
+          <p>{t("Avval ota-ona bo‘limida PIN-kod o‘rnating.")}</p>
+          <Link href="/parent" className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 font-bold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-50">
+            {t("Ota-ona bo‘limiga o‘tish")}
+          </Link>
+        </>
+      ) : (
+        <form onSubmit={unlock} className="flex flex-wrap items-end gap-2">
+          <label className="block">
+            <span className="mb-1 block font-bold">{t("PIN-kod")}</span>
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={6}
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              className="h-11 w-32 rounded-xl border-2 border-amber-200 bg-white px-3 text-slate-900"
+            />
+          </label>
+          <Button type="submit" loading={busy} disabled={pin.length < 4}>
+            {t("🔓 Ota-ona sifatida ochish")}
+          </Button>
+        </form>
+      )}
+      {error && <p className="font-semibold text-rose-700">{error}</p>}
+    </div>
+  );
+}
+
 function ProfileForm() {
   const t = useT();
+  const [parentUnlocked, setParentUnlocked] = useState(() => parentStore.get() !== null);
   const { user, updateProfile } = useAuth();
   const [name, setName] = useState(user!.name);
   const [mascot, setMascot] = useState<MascotId>(user!.profile.mascot!);
@@ -47,6 +111,7 @@ function ProfileForm() {
       await updateProfile({ name: name.trim(), mascot, grade, subject, soundEnabled: sound });
       setMsg({ tone: "info", text: t("✓ O‘zgarishlar saqlandi!") });
     } catch (e) {
+      if (e instanceof ApiError && e.status === 403) setParentUnlocked(false); // ota-ona sessiyasi tugagan
       setMsg({ tone: "error", text: e instanceof Error ? e.message : t("Saqlab bo‘lmadi") });
     } finally {
       setBusy(false);
@@ -111,11 +176,18 @@ function ProfileForm() {
             <p className="mb-2 text-sm font-bold text-slate-700">{t("Sinf")}</p>
             <div className="flex flex-wrap gap-2">
               {GRADES.map((g) => (
-                <button key={g.id} onClick={() => setGrade(g.id)} aria-pressed={grade === g.id} className={chip(grade === g.id)}>
+                <button
+                  key={g.id}
+                  onClick={() => setGrade(g.id)}
+                  aria-pressed={grade === g.id}
+                  disabled={!parentUnlocked}
+                  className={`${chip(grade === g.id)} disabled:cursor-not-allowed ${parentUnlocked || grade === g.id ? "" : "disabled:opacity-50"}`}
+                >
                   {t(g.title)}
                 </button>
               ))}
             </div>
+            {!parentUnlocked && <GradeLock onUnlocked={() => setParentUnlocked(true)} />}
           </div>
           <div>
             <p className="mb-2 text-sm font-bold text-slate-700">{t("Asosiy fan")}</p>
