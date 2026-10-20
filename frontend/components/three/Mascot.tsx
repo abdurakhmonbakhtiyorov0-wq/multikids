@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { CHARACTER_BY_ID, type Character, type MascotId, type RewardId } from "@/lib/data";
 import { BallReward, CapReward, ClothingReward, CrownReward, GlassesReward, RewardSlot, TrophyReward } from "./Rewards";
+import { PandaArm, PandaEyes, PandaHead, PandaLeg, PandaTorso } from "./PandaParts";
 
 export type Mood = "idle" | "thinking" | "happy" | "sad" | "celebrating" | "wearing_rewards";
 export type Reaction = { kind: "equip" | "remove" | "celebrate" | "none"; item?: RewardId | null; nonce: number };
@@ -157,6 +158,7 @@ export function Mascot({ id, mood, equipped, reaction, reducedMotion }: MascotPr
   });
 
   const isRobot = c.extra === "robot";
+  const isPanda = c.extra === "panda";
 
   return (
     <group ref={root}>
@@ -166,24 +168,34 @@ export function Mascot({ id, mood, equipped, reaction, reducedMotion }: MascotPr
         [0.2, legR],
       ].map(([x, ref]) => (
         <group key={x as number} ref={ref as React.RefObject<THREE.Group>} position={[x as number, HIP_Y, 0]}>
-          <mesh position={[0, -0.2, 0]} castShadow>
-            <capsuleGeometry args={[0.13, 0.2, 6, 14]} />
-            <Mat color={c.extra === "mario" ? "#2f5fd0" : c.limbs} />
-          </mesh>
-          <mesh position={[0, -0.36, 0.06]} scale={[1, 0.6, 1.3]} castShadow>
-            <sphereGeometry args={[0.14, 16, 12]} />
-            <Mat color={c.extra === "mario" ? "#6b3e1f" : c.extra === "minion" ? "#1f2937" : c.limbs} />
-          </mesh>
+          {isPanda ? (
+            <PandaLeg />
+          ) : (
+            <>
+              <mesh position={[0, -0.2, 0]} castShadow>
+                <capsuleGeometry args={[0.13, 0.2, 6, 14]} />
+                <Mat color={c.extra === "mario" ? "#2f5fd0" : c.limbs} />
+              </mesh>
+              <mesh position={[0, -0.36, 0.06]} scale={[1, 0.6, 1.3]} castShadow>
+                <sphereGeometry args={[0.14, 16, 12]} />
+                <Mat color={c.extra === "mario" ? "#6b3e1f" : c.extra === "minion" ? "#1f2937" : c.limbs} />
+              </mesh>
+            </>
+          )}
         </group>
       ))}
 
       {/* Tana */}
       <group ref={body} position={[0, HIP_Y, 0]}>
-        <mesh position={[0, 0.42, 0]} scale={[1, 1.1, 0.92]} castShadow>
-          {isRobot ? <boxGeometry args={[0.8, 0.72, 0.62]} /> : <sphereGeometry args={[0.46, 32, 24]} />}
-          <Mat color={c.body} metalness={isRobot ? 0.45 : 0.02} roughness={isRobot ? 0.35 : 0.55} />
-        </mesh>
-        {c.belly && (
+        {isPanda ? (
+          <PandaTorso />
+        ) : (
+          <mesh position={[0, 0.42, 0]} scale={[1, 1.1, 0.92]} castShadow>
+            {isRobot ? <boxGeometry args={[0.8, 0.72, 0.62]} /> : <sphereGeometry args={[0.46, 32, 24]} />}
+            <Mat color={c.body} metalness={isRobot ? 0.45 : 0.02} roughness={isRobot ? 0.35 : 0.55} />
+          </mesh>
+        )}
+        {c.belly && !isPanda && (
           <mesh position={[0, 0.38, 0.3]} scale={[1, 1.15, 0.5]}>
             <sphereGeometry args={[0.3, 24, 16]} />
             <Mat color={c.belly} />
@@ -249,14 +261,20 @@ export function Mascot({ id, mood, equipped, reaction, reducedMotion }: MascotPr
         [1, armR],
       ].map(([s, ref]) => (
         <group key={s as number} ref={ref as React.RefObject<THREE.Group>} position={[0.46 * (s as number), SHOULDER_Y, 0]}>
-          <mesh position={[0, -0.22, 0]} castShadow>
-            <capsuleGeometry args={[0.09, 0.26, 6, 12]} />
-            <Mat color={c.limbs} metalness={isRobot ? 0.45 : 0.02} />
-          </mesh>
-          <mesh position={[0, -0.42, 0]} castShadow>
-            <sphereGeometry args={[0.1, 14, 12]} />
-            <Mat color={c.extra === "mario" || c.extra === "minion" ? "#ffffff" : c.extra === "spider" ? "#e23b3b" : c.limbs} />
-          </mesh>
+          {isPanda ? (
+            <PandaArm />
+          ) : (
+            <>
+              <mesh position={[0, -0.22, 0]} castShadow>
+                <capsuleGeometry args={[0.09, 0.26, 6, 12]} />
+                <Mat color={c.limbs} metalness={isRobot ? 0.45 : 0.02} />
+              </mesh>
+              <mesh position={[0, -0.42, 0]} castShadow>
+                <sphereGeometry args={[0.1, 14, 12]} />
+                <Mat color={c.extra === "mario" || c.extra === "minion" ? "#ffffff" : c.extra === "spider" ? "#e23b3b" : c.limbs} />
+              </mesh>
+            </>
+          )}
           {s === 1 && (
             <group ref={trophyHolder} position={[0, -0.5, 0.05]}>
               <RewardSlot active={has("trophy")} position={[0, -0.02, 0.08]}>
@@ -270,9 +288,7 @@ export function Mascot({ id, mood, equipped, reaction, reducedMotion }: MascotPr
       {/* Bosh */}
       <group ref={head} position={[0, HEAD_Y, 0]}>
         <Head c={c} />
-        <group position={[0, 0.06, R * 0.86]}>
-          <Eyes c={c} eyesRef={eyes} />
-        </group>
+        <group position={[0, 0.06, R * 0.86 + (isPanda ? 0.05 : 0)]}>{isPanda ? <PandaEyes eyesRef={eyes} /> : <Eyes c={c} eyesRef={eyes} />}</group>
         {/* Og'iz: scale.y > 0 — tabassum, < 0 — xafa */}
         <group ref={mouth} position={[0, -R * 0.32, R * 0.93]}>
           <mesh rotation={[0, 0, Math.PI]}>
@@ -290,14 +306,14 @@ export function Mascot({ id, mood, equipped, reaction, reducedMotion }: MascotPr
         {c.extra !== "robot" && c.extra !== "spider" && (
           <>
             {[-1, 1].map((s) => (
-              <mesh key={s} position={[0.27 * s, -0.14, R * 0.83]}>
+              <mesh key={s} position={isPanda ? [0.31 * s, -0.2, 0.38] : [0.27 * s, -0.14, R * 0.83]}>
                 <sphereGeometry args={[0.06, 12, 8]} />
                 <Mat color="#ff9db4" transparent opacity={0.6} />
               </mesh>
             ))}
           </>
         )}
-        <RewardSlot active={has("glasses")} position={[0, 0.06, R * 0.98]}>
+        <RewardSlot active={has("glasses")} position={[0, 0.06, R * 0.98 + (isPanda ? 0.09 : 0)]}>
           <GlassesReward />
         </RewardSlot>
         <RewardSlot active={has("cap")} position={[0, R * 0.72 + (c.extra === "mario" ? 0.08 : 0), 0]}>
@@ -317,6 +333,7 @@ export function Mascot({ id, mood, equipped, reaction, reducedMotion }: MascotPr
 
 function Head({ c }: { c: Character }) {
   const R = c.headR;
+  if (c.extra === "panda") return <PandaHead R={R} />;
   return (
     <group>
       <mesh castShadow>
@@ -329,7 +346,7 @@ function Head({ c }: { c: Character }) {
         [-1, 1].map((s) => (
           <mesh key={s} position={[R * 0.72 * s, R * 0.72, -0.05]} castShadow>
             <sphereGeometry args={[R * 0.32, 16, 12]} />
-            <Mat color={c.extra === "panda" ? "#2b2b33" : c.limbs} />
+            <Mat color={c.limbs} />
           </mesh>
         ))}
       {c.ears === "pointy" &&
@@ -404,7 +421,7 @@ function Head({ c }: { c: Character }) {
           <Mat color={c.belly ?? c.accent} />
         </mesh>
       )}
-      {(c.extra === "bear" || c.extra === "dog" || c.extra === "cat" || c.extra === "panda") && (
+      {(c.extra === "bear" || c.extra === "dog" || c.extra === "cat") && (
         <mesh position={[0, -R * 0.1, R * 0.99]} scale={[1.3, 0.9, 0.8]}>
           <sphereGeometry args={[0.05, 12, 10]} />
           <Mat color="#1f2937" roughness={0.3} />
@@ -419,13 +436,6 @@ function Head({ c }: { c: Character }) {
             </mesh>
           )),
         )}
-      {c.extra === "panda" &&
-        [-1, 1].map((s) => (
-          <mesh key={s} position={[0.17 * s, 0.05, R * 0.8]} rotation={[0, 0, 0.5 * s]} scale={[0.85, 1.15, 0.5]}>
-            <sphereGeometry args={[0.13, 16, 12]} />
-            <Mat color="#2b2b33" />
-          </mesh>
-        ))}
       {c.extra === "robot" && (
         <>
           <mesh position={[0, R * 0.95, 0]}>
