@@ -189,6 +189,7 @@ test("5-sinfdan boshlab sinf erkin almashadi; yutuqlar o‘z sinfida qoladi, yan
     await page.goto("/dashboard");
     await expect(page.locator("main:visible")).toContainText("Jami ball");
     const card = page.locator("main:visible").getByText("Jami ball").locator("..");
+    await expect(card).not.toContainText("–"); // natijalar yuklangunicha procherk ko‘rinadi
     return (await card.innerText()).split("\n")[0];
   };
   const at7 = await points();

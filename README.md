@@ -46,6 +46,10 @@ Modul sinfdan aniqlanadi. Maxsus modul ichkarida 12-"sinf" sifatida saqlanadi. Q
 | `CLIENT_ORIGIN` | ha | Frontend manzili(lari), vergul bilan |
 | `APP_URL` | parol tiklash uchun | Frontendning ochiq manzili (xatdagi havola shu manzilga) |
 | `SMTP_URL` **yoki** `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `MAIL_FROM` | parol tiklash uchun | Sozlanmasa, parolni tiklash aniq xato qaytaradi (soxta muvaffaqiyat yo‘q). |
+| `GEMINI_API_KEY` | AI maslahat uchun | Google AI Studio kaliti. Berilmasa — AI maslahat butunlay o‘chiq (tugma ko‘rinmaydi). Ixtiyoriy: `GEMINI_MODEL` (standart `gemini-2.0-flash`), `HINT_DAILY_LIMIT` (bola uchun kuniga, standart 15). |
+
+**AI maslahat** (testda "💡 Maslahat" tugmasi): modelga faqat savol matni va variantlar yuboriladi (to‘g‘ri javob, izoh, ism, email yo‘q); har bir savolga 2 ta, kuniga 15 ta; imtihon rejimida yo‘q; javobda to‘g‘ri variant uchrasa, umumiy ishoraga almashtiriladi.
+Bepul Gemini rejasida ma’lumotlar Google tomonidan foydalanilishi mumkin va bolalar ilovalari uchun shartlarini tekshiring.
 
 **Frontend** (Vercel, `frontend` loyihasi):
 

@@ -26,7 +26,7 @@ export type ChildInfo = {
   streak: number;
   bestStreak: number;
 };
-export type User = { id: string; name: string; email: string; profile: Profile; createdAt: string; child?: ChildInfo; needsConsent?: boolean };
+export type User = { id: string; name: string; email: string; profile: Profile; createdAt: string; child?: ChildInfo; needsConsent?: boolean; features?: { hints: boolean } };
 
 export type QuizQuestion = { id: string; prompt: string; options: string[]; difficulty: string; topic?: string; image?: { src: string; alt: string } | null };
 export type QuizMode = "quiz" | "mistakes" | "exam";

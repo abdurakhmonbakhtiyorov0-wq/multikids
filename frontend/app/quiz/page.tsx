@@ -23,6 +23,45 @@ function message(r: QuizResult, t: (s: string) => string) {
   return t("Yaxshi harakat! Yana bir bor urinib ko‘ramizmi?");
 }
 
+/** AI maslahat: yo‘naltiruvchi ishora (to‘g‘ri javobsiz). Server kalit berilmagan bo‘lsa, tugma umuman ko‘rsatilmaydi. */
+function HintBox({ sessionId, index, ct }: { sessionId: string; index: number; ct: (s: string) => string }) {
+  const t = useT();
+  const [hint, setHint] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function ask() {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{ hint: string }>(`/api/quiz/${sessionId}/hint`, { method: "POST", body: { index } });
+      setHint(r.hint);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("Xatolik yuz berdi"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      {hint && (
+        <p role="status" className="mb-2 rounded-2xl bg-amber-50 p-3 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">
+          {t("💡 Maslahat:")} {ct(hint)}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="mb-2 text-sm font-semibold text-red-700">
+          {error}
+        </p>
+      )}
+      <Button type="button" variant="secondary" onClick={ask} loading={busy}>
+        {hint ? t("💡 Yana maslahat") : t("💡 Maslahat")}
+      </Button>
+    </div>
+  );
+}
+
 export default function QuizPage() {
   const t = useT();
   const user = useRequireUser();
@@ -318,6 +357,8 @@ export default function QuizPage() {
                         );
                       })}
                     </div>
+
+                    {user.features?.hints && session.mode !== "exam" && !feedback && <HintBox key={q.id} sessionId={session.sessionId} index={index} ct={ct} />}
 
                     <AnimatePresence>
                       {feedback && (
