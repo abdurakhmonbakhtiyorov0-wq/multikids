@@ -360,7 +360,37 @@ function Head({ c }: { c: Character }) {
           </group>
         ))}
 
+      {c.ears === "wide" &&
+        [-1, 1].map((s) => (
+          <group key={s} position={[R * 0.88 * s, R * 0.5, -0.04]} rotation={[0, 0.25 * s, -0.75 * s]}>
+            <mesh castShadow scale={[0.55, 1.35, 0.22]}>
+              <sphereGeometry args={[R * 0.5, 20, 16]} />
+              <Mat color={c.head} />
+            </mesh>
+            <mesh position={[0.01 * s, 0.02, R * 0.07]} scale={[0.36, 1.05, 0.12]}>
+              <sphereGeometry args={[R * 0.5, 20, 16]} />
+              <Mat color={c.accent} />
+            </mesh>
+          </group>
+        ))}
+
       {/* Maxsus tafsilotlar */}
+      {c.extra === "star" && (
+        <>
+          <mesh position={[0, R * 0.98, 0]}>
+            <cylinderGeometry args={[0.018, 0.018, 0.22, 8]} />
+            <Mat color={c.limbs} />
+          </mesh>
+          <mesh position={[0, R * 0.98 + 0.2, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <octahedronGeometry args={[0.1, 0]} />
+            <Mat color="#ffd84d" emissive="#ffd84d" emissiveIntensity={0.9} />
+          </mesh>
+          <mesh position={[0, -R * 0.22, R * 0.8]} scale={[1.25, 0.8, 0.6]}>
+            <sphereGeometry args={[R * 0.3, 20, 16]} />
+            <Mat color={c.belly ?? c.accent} />
+          </mesh>
+        </>
+      )}
       {c.extra === "dragon" &&
         [-1, 1].map((s) => (
           <mesh key={s} position={[R * 0.42 * s, R * 0.9, -0.05]} rotation={[-0.2, 0, -0.3 * s]} castShadow>

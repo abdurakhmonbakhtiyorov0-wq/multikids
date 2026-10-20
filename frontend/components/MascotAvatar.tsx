@@ -9,6 +9,15 @@ export function MascotAvatar({ character: c, size = 96 }: { character: Character
       {c.ears === "round" && [28, 72].map((x) => <circle key={x} cx={x} cy="24" r="10" fill={ear} />)}
       {c.ears === "pointy" && [0, 1].map((i) => <path key={i} d={i ? "M62 26 L78 6 L80 34 Z" : "M38 26 L22 6 L20 34 Z"} fill={c.head} />)}
       {c.ears === "bunny" && [36, 64].map((x) => <ellipse key={x} cx={x} cy="14" rx="7" ry="16" fill={c.head} />)}
+      {c.ears === "wide" &&
+        [0, 1].map((i) => (
+          <g key={i} transform={`rotate(${i ? 40 : -40} ${i ? 76 : 24} 34)`}>
+            <ellipse cx={i ? 76 : 24} cy="34" rx="9" ry="19" fill={c.head} />
+            <ellipse cx={i ? 76 : 24} cy="34" rx="5.5" ry="14" fill={c.accent} />
+          </g>
+        ))}
+      {c.extra === "star" && <line x1="50" y1="16" x2="50" y2="10" stroke={c.limbs} strokeWidth="2.5" />}
+      {c.extra === "star" && <path d="M50 1 L55 7 L50 13 L45 7 Z" fill="#ffd84d" />}
       {c.extra === "dragon" && [0, 1].map((i) => <path key={i} d={i ? "M60 22 L68 4 L70 26 Z" : "M40 22 L32 4 L30 26 Z"} fill={c.accent} />)}
       {c.extra === "robot" && <line x1="50" y1="16" x2="50" y2="4" stroke="#64748b" strokeWidth="3" />}
       {c.extra === "robot" && <circle cx="50" cy="4" r="4" fill="#38bdf8" />}

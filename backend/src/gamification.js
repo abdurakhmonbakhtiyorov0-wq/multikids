@@ -225,6 +225,7 @@ const HEROES = [
   { id: "minioncha", requirement: "5-darajaga yeting", test: (x) => x.level >= 5 },
   { id: "spidermancha", requirement: "«Mukammal!» yutug‘ini oling", test: (x) => x.has("perfect") },
   { id: "mariocha", requirement: "«Kashfiyotchi» yutug‘ini oling (barcha fanlar)", test: (x) => x.has("explorer") },
+  { id: "yulduzcha", requirement: "4-darajaga yeting", test: (x) => x.level >= 4 },
 ];
 
 async function heroContext(child) {

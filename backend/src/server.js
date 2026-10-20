@@ -17,7 +17,7 @@ import { SUBJECTS, GRADES } from "./questions/index.js";
 
 const PORT = Number(process.env.PORT) || 4000;
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:3000,https://multikids-q7zt.vercel.app").split(",").map((s) => s.trim());
-const MASCOTS = ["ajdarcha", "pandacha", "labubu", "mushukcha", "robotcha", "ayiqcha", "minioncha", "spidermancha", "mariocha", "kuchukcha"];
+const MASCOTS = ["ajdarcha", "pandacha", "labubu", "mushukcha", "robotcha", "ayiqcha", "minioncha", "spidermancha", "mariocha", "kuchukcha", "yulduzcha"];
 const RATE_MAX = Number(process.env.RATE_LIMIT_MAX) || 20;
 const VERCEL_ORIGIN = /^https:\/\/multikids[\w-]*\.vercel\.app$/;
 

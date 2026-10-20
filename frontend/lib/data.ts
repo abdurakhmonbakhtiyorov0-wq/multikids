@@ -10,11 +10,12 @@ export type MascotId =
   | "minioncha"
   | "spidermancha"
   | "mariocha"
-  | "kuchukcha";
+  | "kuchukcha"
+  | "yulduzcha";
 export type RewardId = "cap" | "clothing" | "trophy" | "ball" | "glasses" | "crown";
 
-export type EarStyle = "round" | "pointy" | "floppy" | "bunny" | "none";
-export type Extra = "dragon" | "panda" | "labubu" | "cat" | "robot" | "bear" | "minion" | "spider" | "mario" | "dog";
+export type EarStyle = "round" | "pointy" | "floppy" | "bunny" | "wide" | "none";
+export type Extra = "dragon" | "panda" | "labubu" | "cat" | "robot" | "bear" | "minion" | "spider" | "mario" | "dog" | "star";
 
 export type Character = {
   id: MascotId;
@@ -42,6 +43,7 @@ export const CHARACTERS: Character[] = [
   { id: "spidermancha", name: "Spider-Mancha", tagline: "Do‘stona o‘rgimchak qahramon", head: "#e23b3b", body: "#2a4fb8", limbs: "#e23b3b", accent: "#2a4fb8", ears: "none", extra: "spider", headR: 0.5 },
   { id: "mariocha", name: "Mariocha", tagline: "Sakrovchi quvnoq qahramon", head: "#f6c9a0", body: "#2f5fd0", limbs: "#e0393e", accent: "#e0393e", ears: "none", extra: "mario", headR: 0.48 },
   { id: "kuchukcha", name: "Kuchukcha", tagline: "Sadoqatli kuchukcha", head: "#e7c595", body: "#e7c595", limbs: "#d9b27d", belly: "#fff1dc", accent: "#9a6b3f", ears: "floppy", extra: "dog", headR: 0.5 },
+  { id: "yulduzcha", name: "Yulduzcha", tagline: "Kosmosdan kelgan do‘st", head: "#8d7bf0", body: "#8d7bf0", limbs: "#7a68de", belly: "#ffe9a8", accent: "#ffb36b", ears: "wide", extra: "star", headR: 0.5 },
 ];
 
 export const CHARACTER_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c])) as Record<MascotId, Character>;
