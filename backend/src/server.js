@@ -27,7 +27,8 @@ const app = express();
 // Vercel orqasida haqiqiy mijoz IP si X-Forwarded-For dan olinadi (cheklovlar IP bo‘yicha ishlaydi).
 app.set("trust proxy", 1);
 // Token Authorization sarlavhasida yuboriladi (cookie emas), shuning uchun loyiha domenlarini ruxsat etish xavfsiz.
-app.use(cors({ origin: (origin, cb) => cb(null, !origin || CLIENT_ORIGIN.includes(origin) || VERCEL_ORIGIN.test(origin)) }));
+// maxAge: brauzer preflight (OPTIONS) javobini bir kun eslab qoladi — har so‘rovda qo‘shimcha tarmoq aylanishi bo‘lmaydi.
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || CLIENT_ORIGIN.includes(origin) || VERCEL_ORIGIN.test(origin)), maxAge: 86400 }));
 app.use(express.json({ limit: "50kb" }));
 
 // Baza tayyorligi (birinchi so‘rovda tekshiriladi; xato bo‘lsa keyingi so‘rovda qayta uriniladi).
