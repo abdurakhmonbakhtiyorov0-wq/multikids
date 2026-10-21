@@ -15,6 +15,7 @@ import { hasConsent, recordConsent, pinStatus, setPin, checkPin, overview, delet
 import { listShop, buyItem, equipItem, getDaily, answerDaily, getWeekly, claimWeekly, listHeroes, assertHeroUnlocked } from "./gamification.js";
 import { SUBJECTS, GRADES } from "./questions/index.js";
 import { MODULES, ALL_GRADES, subjectsForGrade, isOffered, READY_MIN_QUESTIONS } from "./curriculum.js";
+import { getHint, hintsEnabled } from "./hints.js";
 
 const PORT = Number(process.env.PORT) || 4000;
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN || "http://localhost:3000,https://multikids-q7zt.vercel.app").split(",").map((s) => s.trim());
@@ -26,7 +27,8 @@ const app = express();
 // Vercel orqasida haqiqiy mijoz IP si X-Forwarded-For dan olinadi (cheklovlar IP bo‘yicha ishlaydi).
 app.set("trust proxy", 1);
 // Token Authorization sarlavhasida yuboriladi (cookie emas), shuning uchun loyiha domenlarini ruxsat etish xavfsiz.
-app.use(cors({ origin: (origin, cb) => cb(null, !origin || CLIENT_ORIGIN.includes(origin) || VERCEL_ORIGIN.test(origin)) }));
+// maxAge: brauzer preflight (OPTIONS) javobini bir kun eslab qoladi — har so‘rovda qo‘shimcha tarmoq aylanishi bo‘lmaydi.
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || CLIENT_ORIGIN.includes(origin) || VERCEL_ORIGIN.test(origin)), maxAge: 86400 }));
 app.use(express.json({ limit: "50kb" }));
 
 // Baza tayyorligi (birinchi so‘rovda tekshiriladi; xato bo‘lsa keyingi so‘rovda qayta uriniladi).
@@ -68,7 +70,7 @@ const rateLimit = (name, max = RATE_MAX, windowSec = 900) => async (req, _res, n
 
 /** Foydalanuvchi + faol bola ma’lumoti; rozilik holati bilan. */
 async function userPayload(user, child) {
-  return { ...publicUser(user, child), needsConsent: !(await hasConsent(user.id)) };
+  return { ...publicUser(user, child), needsConsent: !(await hasConsent(user.id)), features: { hints: hintsEnabled() } };
 }
 
 /** Bolalar ma’lumotini qayta ishlashdan oldin ota-ona roziligi shart. */
@@ -259,6 +261,13 @@ app.post("/api/quiz/:id/answer", auth, async (req, res) => {
   const parsed = answerSchema.safeParse(req.body);
   if (!parsed.success) throw bad("Noto‘g‘ri javob");
   res.json(await answerQuiz(req.child, req.params.id, parsed.data));
+});
+
+// AI maslahat: joriy savol uchun yo‘naltiruvchi ishora (to‘g‘ri javobsiz). GEMINI_API_KEY bo‘lmasa — 503.
+app.post("/api/quiz/:id/hint", auth, requireConsent, rateLimit("hint", 60, 3600), async (req, res) => {
+  const parsed = z.object({ index: z.number().int() }).safeParse(req.body);
+  if (!parsed.success) throw bad("Noto‘g‘ri savol raqami");
+  res.json(await getHint(req.child, req.params.id, parsed.data.index));
 });
 
 app.post("/api/quiz/:id/finish", auth, async (req, res) => {

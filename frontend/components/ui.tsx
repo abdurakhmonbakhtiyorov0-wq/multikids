@@ -33,12 +33,19 @@ export function Card({ className = "", children }: { className?: string; childre
   return <div className={`rounded-3xl bg-white p-5 shadow-[0_10px_30px_-12px_rgba(30,64,175,0.25)] ring-1 ring-blue-100 sm:p-6 ${className}`}>{children}</div>;
 }
 
-export function Logo() {
+export function Logo({ locked = false }: { locked?: boolean }) {
   const t = useT();
-  return (
-    <Link href="/" className="flex items-center gap-2 text-xl font-black text-blue-700">
+  const content = (
+    <>
       <span className="grid h-10 w-10 place-items-center rounded-2xl bg-blue-600 text-white shadow-[0_4px_0_#1e40af]">{t("M")}</span>
       {t("MultiKids")}
+    </>
+  );
+  // Tugallanmagan testda logotip havola emas — sahifadan chiqib ketish yo‘li yo‘q.
+  if (locked) return <div className="flex items-center gap-2 text-xl font-black text-blue-700">{content}</div>;
+  return (
+    <Link href="/" className="flex items-center gap-2 text-xl font-black text-blue-700">
+      {content}
     </Link>
   );
 }
@@ -105,7 +112,8 @@ export function PageLoader() {
   );
 }
 
-export function AppHeader() {
+/** `locked` — aralash test yoki imtihon davomida: menyu, havolalar va chiqish tugmasi olib tashlanadi. */
+export function AppHeader({ locked = false }: { locked?: boolean }) {
   const t = useT();
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -144,9 +152,12 @@ export function AppHeader() {
         </div>
       )}
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Logo />
-        <LanguageSwitcher className="ml-auto" />
-        {user && (
+        <Logo locked={locked} />
+        {locked && (
+          <span className="ml-auto rounded-full bg-amber-100 px-3 py-1 text-sm font-extrabold text-amber-900">{t("🔒 Test tugamaguncha chiqib bo‘lmaydi")}</span>
+        )}
+        <LanguageSwitcher className={locked ? "" : "ml-auto"} />
+        {user && !locked && (
           <>
             {kids.length > 1 && (
               <select
@@ -184,7 +195,7 @@ export function AppHeader() {
           </>
         )}
       </div>
-      {user && open && (
+      {user && !locked && open && (
         <nav className="flex flex-col gap-1 border-t border-blue-100 px-4 py-2 md:hidden">
           {links.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 font-bold text-slate-700 hover:bg-blue-50">

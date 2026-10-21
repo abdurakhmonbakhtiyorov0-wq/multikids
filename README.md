@@ -46,6 +46,10 @@ Modul sinfdan aniqlanadi. Maxsus modul ichkarida 12-"sinf" sifatida saqlanadi. Q
 | `CLIENT_ORIGIN` | ha | Frontend manzili(lari), vergul bilan |
 | `APP_URL` | parol tiklash uchun | Frontendning ochiq manzili (xatdagi havola shu manzilga) |
 | `SMTP_URL` **yoki** `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `MAIL_FROM` | parol tiklash uchun | Sozlanmasa, parolni tiklash aniq xato qaytaradi (soxta muvaffaqiyat yo‘q). |
+| `GEMINI_API_KEY` | AI maslahat uchun | Google AI Studio kaliti. Berilmasa — AI maslahat butunlay o‘chiq (tugma ko‘rinmaydi). Ixtiyoriy: `GEMINI_MODEL` (standart `gemini-2.0-flash`), `HINT_DAILY_LIMIT` (bola uchun kuniga, standart 15). |
+
+**AI maslahat** (testda "💡 Maslahat" tugmasi): modelga faqat savol matni va variantlar yuboriladi (to‘g‘ri javob, izoh, ism, email yo‘q); har bir savolga 2 ta, kuniga 15 ta; imtihon rejimida yo‘q; javobda to‘g‘ri variant uchrasa, umumiy ishoraga almashtiriladi.
+Bepul Gemini rejasida ma’lumotlar Google tomonidan foydalanilishi mumkin va bolalar ilovalari uchun shartlarini tekshiring.
 
 **Frontend** (Vercel, `frontend` loyihasi):
 
@@ -101,4 +105,4 @@ cd e2e && npm install && npm run build && npx playwright test   # haqiqiy Chrome
 - Interfeys uch tilda (o‘zbek lotin/kirill, rus). Savollar bazasi faqat o‘zbek tilida: kirill rejimida o‘zbek tilidagi fanlar avtomatik o‘giriladi, rus rejimida savollar o‘zbekcha qoladi.
 - Offlayn rejimda test yechib bo‘lmaydi (javoblar serverda tekshiriladi); internet uzilsa, javob aloqa tiklangach qayta yuboriladi.
 - 3D qahramonlar faqat boshlang‘ich modulda. Panda uchun tayyor model (`frontend/public/models/pandacha.glb`) qo‘yish mumkin — qarang `frontend/public/models/README.md`.
-- 5–11-sinf va SAT savollari hozircha qisman: tayyor bo‘lmagan fanlar "Tez orada" ko‘rinadi.
+- 5–11-sinf va SAT uchun barcha fanlarda savollar bor. Tarix, geografiya, adabiyot, ona tili va rus tili savollari o‘z bilimimizdan yozilgan (hech qayerdan ko‘chirilmagan) — o‘quv kitoblari bilan solishtirib tekshirish kerak. Savollari yetarli bo‘lmagan yangi fan qo‘shilsa, "Tez orada" ko‘rinadi.

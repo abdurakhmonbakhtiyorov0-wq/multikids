@@ -5,6 +5,7 @@ import {
 } from "../src/quizEngine.js";
 import { collectQuestions, validateQuestion } from "../scripts/seed.js";
 import { MODULES, subjectsForGrade, isOffered, READY_MIN_QUESTIONS } from "../src/curriculum.js";
+import moduleBanks from "../src/questions/modules/index.js";
 
 test("savollar banki: hammasi yaroqli, ID lar takrorlanmaydi, boshlang‘ich modulda har bir sinf-fanda kamida 20 ta", () => {
   const all = collectQuestions();
@@ -29,7 +30,11 @@ test("yangi modullarda tayyor fanlarda har bir qiyinlik darajasida yetarli savol
     const key = `${q.subject}:${q.grade}`;
     ready.set(key, [...(ready.get(key) ?? []), q.difficulty]);
   }
-  const pairs = [["mathematics", 5], ["mathematics", 6], ["algebra", 7], ["algebra", 11], ["geometry", 7], ["geometry", 11], ["chemistry", 8], ["biology", 9], ["physics", 8], ["informatics", 7], ["english", 7], ["sat-math", 12], ["sat-reading", 12]];
+  // Hisoblab yaratilganlar + qo‘lda yozilgan barcha to‘plamlar (modules/index.js) tayyor bo‘lishi kerak
+  const generated = [["mathematics", 5], ["mathematics", 6], ["algebra", 7], ["algebra", 11], ["geometry", 7], ["geometry", 11], ["sat-math", 12]];
+  const handwritten = Object.entries(moduleBanks).flatMap(([subject, byGrade]) => Object.keys(byGrade).map((g) => [subject, Number(g)]));
+  const pairs = [...generated, ...handwritten];
+  assert.ok(handwritten.length >= 30, `qo‘lda yozilgan to‘plamlar: ${handwritten.length}`);
   for (const [s, g] of pairs) {
     const d = ready.get(`${s}:${g}`) ?? [];
     assert.ok(d.length >= READY_MIN_QUESTIONS, `${s} ${g}: ${d.length}`);
