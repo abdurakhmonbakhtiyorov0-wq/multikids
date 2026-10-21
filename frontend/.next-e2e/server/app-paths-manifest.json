@@ -1,0 +1,21 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/forgot/page": "app/forgot/page.js",
+  "/login/page": "app/login/page.js",
+  "/manifest.webmanifest/route": "app/manifest.webmanifest/route.js",
+  "/offline/page": "app/offline/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
+  "/page": "app/page.js",
+  "/parent/page": "app/parent/page.js",
+  "/privacy/page": "app/privacy/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/progress/page": "app/progress/page.js",
+  "/quiz/page": "app/quiz/page.js",
+  "/register/page": "app/register/page.js",
+  "/reset/page": "app/reset/page.js",
+  "/tasks/page": "app/tasks/page.js",
+  "/tests/page": "app/tests/page.js"
+}

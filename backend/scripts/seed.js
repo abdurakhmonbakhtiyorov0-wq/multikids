@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { pool } from "../src/db.js";
 import { allBanks } from "../src/questions/index.js";
 import { generatedMathQuestions } from "../src/questions/generated-math.js";
+import { generatedModuleQuestions } from "../src/questions/generated-modules.js";
+import { IMAGE_SPECS } from "../src/questions/images.js";
 
 const LEVEL = { easy: 1, medium: 2, hard: 3 };
 
@@ -22,7 +24,21 @@ export function collectQuestions() {
       correctIndex: q.correctAnswerIndex,
       explanation: q.explanation,
     }));
-  return [...fixed, ...generatedMathQuestions()];
+  const images = IMAGE_SPECS.map((q) => ({
+    id: q.id,
+    grade: q.grade,
+    subject: q.subject,
+    topic: "visual",
+    difficulty: q.difficulty,
+    prompt: q.prompt,
+    options: [q.correct, ...q.wrong],
+    correctIndex: 0,
+    explanation: q.explanation,
+    kind: "image",
+    imagePath: `/questions/${q.id}.svg`,
+    imageAlt: q.alt,
+  }));
+  return [...fixed, ...generatedMathQuestions(), ...generatedModuleQuestions(), ...images];
 }
 
 export function validateQuestion(q) {
@@ -44,11 +60,12 @@ export async function seed(log = console.log) {
   }
   for (const q of questions) {
     await pool.query(
-      `INSERT INTO questions (id, subject, grade, topic, difficulty, prompt, options, correct_index, explanation)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      `INSERT INTO questions (id, subject, grade, topic, difficulty, prompt, options, correct_index, explanation, kind, image_path, image_alt)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        ON CONFLICT (id) DO UPDATE SET topic = EXCLUDED.topic, difficulty = EXCLUDED.difficulty, prompt = EXCLUDED.prompt,
-         options = EXCLUDED.options, correct_index = EXCLUDED.correct_index, explanation = EXCLUDED.explanation`,
-      [q.id, q.subject, q.grade, q.topic, q.difficulty, { uz: q.prompt }, { uz: q.options }, q.correctIndex, { uz: q.explanation }],
+         options = EXCLUDED.options, correct_index = EXCLUDED.correct_index, explanation = EXCLUDED.explanation,
+         kind = EXCLUDED.kind, image_path = EXCLUDED.image_path, image_alt = EXCLUDED.image_alt`,
+      [q.id, q.subject, q.grade, q.topic, q.difficulty, { uz: q.prompt }, { uz: q.options }, q.correctIndex, { uz: q.explanation }, q.kind ?? "text", q.imagePath ?? null, q.imageAlt ? { uz: q.imageAlt } : null],
     );
   }
   log(`Savollar yuklandi: ${questions.length}`);

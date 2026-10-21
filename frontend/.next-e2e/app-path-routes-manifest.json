@@ -1,0 +1,21 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/dashboard/page": "/dashboard",
+  "/favicon.ico/route": "/favicon.ico",
+  "/forgot/page": "/forgot",
+  "/login/page": "/login",
+  "/manifest.webmanifest/route": "/manifest.webmanifest",
+  "/offline/page": "/offline",
+  "/onboarding/page": "/onboarding",
+  "/page": "/",
+  "/parent/page": "/parent",
+  "/privacy/page": "/privacy",
+  "/profile/page": "/profile",
+  "/progress/page": "/progress",
+  "/quiz/page": "/quiz",
+  "/register/page": "/register",
+  "/reset/page": "/reset",
+  "/tasks/page": "/tasks",
+  "/tests/page": "/tests"
+}

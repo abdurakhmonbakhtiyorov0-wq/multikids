@@ -1,0 +1,3 @@
+module.exports=[13006,a=>{"use strict";var b=a.i(87924),c=a.i(82665);a.s(["f",0,function({subject:a,kids:d}){let e=c.T[a];return d?(0,b.jsx)("span",{"aria-hidden":!0,children:e.emoji}):(0,b.jsx)("span",{"aria-hidden":!0,className:"inline-grid min-w-8 place-items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-black leading-none text-blue-800",children:e.abbr})}])}];
+
+//# sourceMappingURL=components_SubjectBadge_tsx_0u1k0knisurv0._.js.map

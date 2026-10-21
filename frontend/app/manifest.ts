@@ -1,0 +1,21 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "MultiKids — o‘yin orqali o‘rgan",
+    short_name: "MultiKids",
+    description: "1–4-sinf o‘quvchilari uchun 3D qahramonli o‘quv platformasi",
+    start_url: "/dashboard",
+    scope: "/",
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#f5f9ff",
+    theme_color: "#2563eb",
+    lang: "uz",
+    icons: [
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+  };
+}

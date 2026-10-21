@@ -38,3 +38,293 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Ko‘rinish sozlamalari ---------- */
+
+/* Katta shrift: butun interfeys rem birligida, shuning uchun hammasi birga kattalashadi. */
+html[data-size="large"] {
+  font-size: 118%;
+}
+html[data-size="xlarge"] {
+  font-size: 135%;
+}
+
+/* Sensorli ekranlarda tugmalar kamida 44px (barmoq uchun qulay). */
+@media (pointer: coarse) {
+  button,
+  select,
+  summary {
+    min-height: 44px;
+  }
+}
+html[data-size="large"] button,
+html[data-size="xlarge"] button {
+  min-height: 3rem;
+}
+
+/* ---------- Modullar ---------- */
+/* Boshlang‘ich (1–4): quvnoq, yumaloq, Nunito — standart ko‘rinish.
+   O‘rta (5–8): jiddiy, ixcham, tekis. Yuqori (9–11): zamonaviy, animatsiyali. Maxsus (SAT): imtihon uslubi.
+   Rang va burchak o‘zgaruvchilari qayta belgilanadi, shuning uchun hamma sahifa o‘z-o‘zidan moslashadi. */
+
+html[data-module="middle"],
+html[data-module="senior"],
+html[data-module="special"] {
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
+  --radius-4xl: 0.875rem;
+}
+
+html[data-module="middle"] body,
+html[data-module="senior"] body,
+html[data-module="special"] body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.005em;
+}
+
+/* O‘rta: sokin ko‘k-kulrang palitra, tekis fon, yumshoq soyalar. */
+html[data-module="middle"] {
+  --color-blue-50: #f3f5fa;
+  --color-blue-100: #e5e9f3;
+  --color-blue-200: #cdd5e8;
+  --color-blue-300: #a8b5d3;
+  --color-blue-400: #7f90b7;
+  --color-blue-500: #5b6e9c;
+  --color-blue-600: #3d4f7c;
+  --color-blue-700: #2f3e63;
+  --color-blue-800: #243050;
+  --color-blue-900: #1a2440;
+  --color-blue-950: #111a30;
+}
+html[data-module="middle"] body {
+  background-color: #f6f7fb;
+  background-image: none;
+  color: #111a30;
+}
+
+/* Maxsus (SAT): imtihon uslubi — to‘q ko‘k-yashil palitra, tekis fon. */
+html[data-module="special"] {
+  --color-blue-50: #effaf8;
+  --color-blue-100: #d6f1ed;
+  --color-blue-200: #aee3dc;
+  --color-blue-300: #7dcfc5;
+  --color-blue-400: #45b3a7;
+  --color-blue-500: #1f968a;
+  --color-blue-600: #0f766e;
+  --color-blue-700: #0d5f59;
+  --color-blue-800: #0c4c48;
+  --color-blue-900: #0a3c39;
+  --color-blue-950: #052624;
+}
+html[data-module="special"] body {
+  background-color: #f4f8f8;
+  background-image: none;
+  color: #052624;
+}
+
+/* Yuqori: binafsha-ko‘k palitra, harakatlanuvchi gradient fon va shisha kartalar. */
+html[data-module="senior"] {
+  --color-blue-50: #f4f1ff;
+  --color-blue-100: #e8e2ff;
+  --color-blue-200: #d3c8ff;
+  --color-blue-300: #b3a2ff;
+  --color-blue-400: #8f78ff;
+  --color-blue-500: #7357f6;
+  --color-blue-600: #5b3fe0;
+  --color-blue-700: #4a32bd;
+  --color-blue-800: #3b2a94;
+  --color-blue-900: #2d2170;
+  --color-blue-950: #1e1650;
+}
+@keyframes aurora-shift {
+  0% { background-position: 0% 0%, 100% 0%, 50% 100%; }
+  50% { background-position: 30% 40%, 70% 30%, 40% 60%; }
+  100% { background-position: 0% 0%, 100% 0%, 50% 100%; }
+}
+html[data-module="senior"] body {
+  background-color: #f3f1ff;
+  background-image: radial-gradient(circle at 20% 10%, #e0d8ff 0, transparent 45%), radial-gradient(circle at 90% 20%, #d5f0ff 0, transparent 40%), radial-gradient(circle at 50% 100%, #efe0ff 0, transparent 45%);
+  background-size: 140% 140%, 140% 140%, 140% 140%;
+  animation: aurora-shift 24s ease-in-out infinite;
+}
+
+/* Jiddiy modullarda "o‘yinchoq" qattiq soyalar o‘chiriladi (tugma va kartalarda). */
+html[data-module="middle"] [class*="shadow-[0_"],
+html[data-module="special"] [class*="shadow-[0_"],
+html[data-module="senior"] [class*="shadow-[0_"] {
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.12), 0 4px 12px -6px rgb(16 24 40 / 0.18) !important;
+}
+html[data-module="middle"] [class*="active:translate-y"]:active,
+html[data-module="special"] [class*="active:translate-y"]:active,
+html[data-module="senior"] [class*="active:translate-y"]:active {
+  transform: none;
+}
+html[data-module="senior"] .module-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+html[data-module="senior"] .module-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* Qorong‘i mavzu: Tailwind rang o‘zgaruvchilari qayta belgilanadi, komponentlarga tegilmaydi. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-blue-50: #1a2a4a;
+  --color-blue-100: #243a63;
+  --color-blue-200: #31497a;
+  --color-blue-300: #4a67a3;
+  --color-slate-50: #1a2a4a;
+  --color-slate-100: #223356;
+  --color-red-50: #3b1d27;
+  --color-red-100: #4a2230;
+  --color-red-200: #6b2d3d;
+  --color-rose-50: #3b1d27;
+  --color-rose-100: #4a2230;
+  --color-rose-200: #6b2d3d;
+  --color-emerald-50: #12342b;
+  --color-emerald-100: #16443a;
+  --color-amber-50: #3b3017;
+  --color-amber-100: #4a3b17;
+  --color-violet-100: #32295a;
+  --color-orange-100: #4a2f1a;
+  --color-lime-100: #2f3d17;
+}
+html[data-theme="dark"] body {
+  background-color: #0b1426;
+  color: #e6efff;
+  background-image: radial-gradient(circle at 10% 0%, #14264a 0, transparent 40%), radial-gradient(circle at 100% 30%, #112042 0, transparent 35%);
+}
+html[data-theme="dark"] .bg-white {
+  background-color: #15213a;
+}
+html[data-theme="dark"] .bg-white\/85 {
+  background-color: rgb(21 33 58 / 0.85);
+}
+html[data-theme="dark"] .bg-white\/90 {
+  background-color: rgb(21 33 58 / 0.9);
+}
+html[data-theme="dark"] .focus\:bg-white:focus {
+  background-color: #15213a;
+}
+html[data-theme="dark"] .via-white {
+  --tw-gradient-via: #15213a;
+}
+html[data-theme="dark"] .to-white {
+  --tw-gradient-to: #15213a;
+}
+html[data-theme="dark"] .text-blue-950 {
+  color: #eaf1ff;
+}
+html[data-theme="dark"] .text-blue-900 {
+  color: #dbe7ff;
+}
+html[data-theme="dark"] .text-blue-800 {
+  color: #c4d6ff;
+}
+html[data-theme="dark"] .text-blue-700,
+html[data-theme="dark"] .hover\:text-blue-700:hover {
+  color: #9bbcff;
+}
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-slate-700 {
+  color: #d5deee;
+}
+html[data-theme="dark"] .text-slate-600 {
+  color: #b7c3da;
+}
+html[data-theme="dark"] .text-slate-500 {
+  color: #9aa9c4;
+}
+html[data-theme="dark"] .text-slate-400 {
+  color: #7f8fae;
+}
+html[data-theme="dark"] .text-emerald-700,
+html[data-theme="dark"] .text-emerald-800 {
+  color: #6ee7b7;
+}
+html[data-theme="dark"] .text-amber-700,
+html[data-theme="dark"] .text-amber-800,
+html[data-theme="dark"] .text-amber-900 {
+  color: #fcd34d;
+}
+html[data-theme="dark"] .text-red-600,
+html[data-theme="dark"] .text-red-700,
+html[data-theme="dark"] .text-red-800 {
+  color: #fca5a5;
+}
+html[data-theme="dark"] .text-rose-700,
+html[data-theme="dark"] .text-rose-800,
+html[data-theme="dark"] .text-rose-900 {
+  color: #fda4af;
+}
+html[data-theme="dark"] .text-violet-800 {
+  color: #c4b5fd;
+}
+html[data-theme="dark"] .text-orange-800 {
+  color: #fdba74;
+}
+html[data-theme="dark"] .text-lime-800 {
+  color: #bef264;
+}
+/* Ko‘k kartochkadagi oq/och matn qorong‘i mavzuda ham och qoladi */
+html[data-theme="dark"] .text-blue-100 {
+  color: #dbeafe;
+}
+
+/* Modul + qorong‘i mavzu: har bir modulning o‘z qorong‘i palitrasi (yuqoridagi umumiy ko‘k qorong‘i rang o‘rniga). */
+html[data-module="middle"][data-theme="dark"] {
+  --color-blue-50: #1b2338;
+  --color-blue-100: #252f4a;
+  --color-blue-200: #323f61;
+  --color-blue-300: #4a5b85;
+  --color-slate-50: #1b2338;
+  --color-slate-100: #232d46;
+}
+html[data-module="middle"][data-theme="dark"] body {
+  background-color: #0e1424;
+  background-image: none;
+  color: #e4e9f5;
+}
+html[data-module="middle"][data-theme="dark"] .bg-white,
+html[data-module="special"][data-theme="dark"] .bg-white {
+  background-color: #161e33;
+}
+html[data-module="special"][data-theme="dark"] {
+  --color-blue-50: #11302e;
+  --color-blue-100: #174341;
+  --color-blue-200: #1f5b57;
+  --color-blue-300: #2f7e78;
+  --color-slate-50: #11302e;
+  --color-slate-100: #163a37;
+}
+html[data-module="special"][data-theme="dark"] body {
+  background-color: #08171a;
+  background-image: none;
+  color: #e0f4f1;
+}
+html[data-module="senior"][data-theme="dark"] {
+  --color-blue-50: #1b1740;
+  --color-blue-100: #272058;
+  --color-blue-200: #382d7a;
+  --color-blue-300: #5240b5;
+  --color-slate-50: #1b1740;
+  --color-slate-100: #231d4d;
+}
+html[data-module="senior"][data-theme="dark"] body {
+  background-color: #070b1c;
+  background-image: radial-gradient(circle at 15% 10%, #2a1d63 0, transparent 45%), radial-gradient(circle at 90% 25%, #0f3a5c 0, transparent 40%), radial-gradient(circle at 50% 100%, #3a1560 0, transparent 45%);
+  color: #ece8ff;
+}
+html[data-module="senior"][data-theme="dark"] .bg-white {
+  background-color: rgb(24 20 58 / 0.65);
+  backdrop-filter: blur(12px);
+}
+html[data-module="senior"][data-theme="dark"] .bg-white\/85,
+html[data-module="senior"][data-theme="dark"] .bg-white\/90 {
+  background-color: rgb(14 12 38 / 0.8);
+}
+html[data-module="senior"][data-theme="dark"] .text-blue-700,
+html[data-module="senior"][data-theme="dark"] .hover\:text-blue-700:hover {
+  color: #b8a8ff;
+}

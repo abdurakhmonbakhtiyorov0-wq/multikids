@@ -1,13 +1,12 @@
 import crypto from "node:crypto";
+import { pointsFor } from "./tests.js";
 
 // Sof (bazaga bog‘lanmagan) test qoidalari: qiyinlik, moslashuv, mukofotlar, o‘zlashtirish.
 // Barcha holat javoblar tarixidan qayta hisoblanadi (replay), shuning uchun serverda xotira kerak emas.
 
 export const QUIZ_LENGTH = 20;
-export const POINTS_PER_CORRECT = 10;
-export const MISTAKE_POINTS_PER_CORRECT = 5;
 export const COMPLETION_XP = 10;
-export const MASTERY_STREAK = 3; // ketma-ket to‘g‘ri javoblar soni — xato "o‘zlashtirilgan" hisoblanadi
+export const MASTERY_STREAK = 1; // ketma-ket to‘g‘ri javoblar soni — xato "o‘zlashtirilgan" hisoblanadi (1: bitta to‘g‘ri javob xatoni ro‘yxatdan olib tashlaydi)
 export const ADAPT_UP_AFTER = 3; // ketma-ket to‘g‘ri -> qiyinroq
 export const ADAPT_DOWN_AFTER = 2; // ketma-ket noto‘g‘ri -> osonroq
 export const MAX_CHILDREN = 8;
@@ -80,7 +79,11 @@ export function adapt(state, correct) {
 }
 
 // --- Ochko, daraja ---
-export const pointsPerCorrect = (mode) => (mode === "mistakes" ? MISTAKE_POINTS_PER_CORRECT : POINTS_PER_CORRECT);
+/** Bir to‘g‘ri javob uchun ball: test bosqichiga qarab (tests.js). */
+export const pointsPerCorrect = (mode, testId) => pointsFor(mode, testId);
+
+const LEVEL_TITLES = ["Yangi boshlovchi", "Qiziquvchi", "Izlanuvchi", "Bilimdon", "Mohir", "Ustoz", "Dono"];
+export const levelTitle = (level) => LEVEL_TITLES[Math.min(level, LEVEL_TITLES.length) - 1];
 
 export function levelForXp(xp) {
   return 1 + Math.floor(Math.sqrt(xp / 50));
@@ -117,12 +120,12 @@ export function replay(answers) {
   return { ...st, events };
 }
 
-export function publicState(r, mode = "quiz") {
+export function publicState(r, mode = "quiz", testId = "mixed") {
   return {
     answered: r.correct + r.incorrect,
     correct: r.correct,
     incorrect: r.incorrect,
-    score: r.correct * pointsPerCorrect(mode),
+    score: r.correct * pointsPerCorrect(mode, testId),
     streak: r.streak,
     equipped: [...r.equipped],
     earned: [...r.earned],

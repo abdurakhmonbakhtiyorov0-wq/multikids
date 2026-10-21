@@ -6,3 +6,5 @@ node_modules
 backend/data
 .agents/
 skills/
+.next-e2e
+.next-shot
